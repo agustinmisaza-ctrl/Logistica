@@ -124,7 +124,7 @@ const daysForward = (days: number) => {
 
 // --- POPULATE DATA ---
 const populateDemo = () => {
-    // 1. POPULATE TOOLS (already enhanced previously)
+    // 1. POPULATE TOOLS
     const toolTemplates = [
         { name: 'Taladro Percutor 1/2"', brand: 'Bosch', category: 'ELECTRICA' as const },
         { name: 'Amoladora Angular 4-1/2"', brand: 'Makita', category: 'ELECTRICA' as const },
@@ -158,12 +158,24 @@ const populateDemo = () => {
         });
     }
 
-    // 2. POPULATE INVENTORY, TRANSACTIONS, PROGRESS
+    // 2. POPULATE INVENTORY WITH ~50% HEALTH TARGET
+    // To get ~50% Health:
+    // - High Dead Stock Rate (~40% of value stagnant)
+    // - Moderate Stockout Rate (~10% of items)
+    // - Low ITR (Turnover)
+    
     ITEMS.forEach((item, itemIdx) => {
-        const itemSites = SITES.slice(0, 8); // Spread across first 8 sites
+        const itemSites = SITES.slice(0, 8); 
         itemSites.forEach((site, siteIdx) => {
             const isWarehouse = site.type === SiteType.BODEGA_CENTRAL;
-            const baseQty = isWarehouse ? 1000 + (itemIdx * 10) : 50 + Math.floor(Math.random() * 200);
+            
+            // INDUCE STAGNATION: If item index is even, make it old (Aging > 90 days)
+            const isStagnant = itemIdx % 2 === 0;
+            const agingDays = isStagnant ? 95 + Math.floor(Math.random() * 60) : 5 + Math.floor(Math.random() * 20);
+            
+            // INDUCE STOCKOUTS: Every 5th item has low qty
+            const isStockout = itemIdx % 5 === 0 && !isWarehouse;
+            const baseQty = isWarehouse ? 1000 : (isStockout ? 2 : 50 + Math.floor(Math.random() * 150));
             
             // Current Stock
             INVENTORY_MOCK.push({
@@ -171,39 +183,48 @@ const populateDemo = () => {
                 itemId: item.id,
                 siteId: site.id,
                 quantity: baseQty,
-                lastMovedDate: daysAgo(Math.floor(Math.random() * 40))
+                lastMovedDate: daysAgo(agingDays)
             });
 
             // Historical Transactions (Rotation)
-            for (let d = 1; d <= 5; d++) {
-                const typeRand = Math.random();
+            // If stagnant, few or no consumption transactions recently
+            if (!isStagnant) {
+                for (let d = 1; d <= 3; d++) {
+                    TRANSACTIONS_MOCK.push({
+                        id: `tx-${item.id}-${site.id}-${d}`,
+                        itemId: item.id,
+                        siteId: site.id,
+                        quantity: Math.floor(baseQty * 0.1),
+                        date: daysAgo(d * 10),
+                        type: 'CONSUMPTION'
+                    });
+                }
+            } else {
+                // Stagnant items only have entries from 4 months ago
                 TRANSACTIONS_MOCK.push({
-                    id: `tx-${item.id}-${site.id}-${d}`,
+                    id: `tx-old-${item.id}-${site.id}`,
                     itemId: item.id,
                     siteId: site.id,
-                    quantity: isWarehouse ? 500 : Math.floor(baseQty * 0.2),
-                    date: daysAgo(d * 15),
-                    type: typeRand > 0.4 ? 'CONSUMPTION' : 'ENTRY'
+                    quantity: baseQty,
+                    date: daysAgo(120),
+                    type: 'ENTRY'
                 });
             }
 
             // Project Progress
-            if (!isWarehouse && itemIdx % 2 === 0) {
+            if (!isWarehouse && itemIdx % 3 === 0) {
                 PROGRESS_MOCK.push({
                     id: `prog-${item.id}-${site.id}`,
                     siteId: site.id,
                     itemId: item.id,
-                    quantityInstalled: Math.floor(baseQty * 1.2),
+                    quantityInstalled: Math.floor(baseQty * 0.5),
                     lastReportDate: daysAgo(2)
                 });
             }
         });
     });
 
-    // 3. POPULATE MOVEMENTS (Solicitudes / Aprobaciones)
-    const requesterIds = ['u1', 'u3', 'u4'];
-    
-    // Batch 1: Pending (For Approvals Tab)
+    // 3. POPULATE MOVEMENTS
     const batch1Id = 'BATCH-DEMO-001';
     for (let i = 0; i < 4; i++) {
         MOVEMENTS_MOCK.push({
@@ -219,24 +240,6 @@ const populateDemo = () => {
         });
     }
 
-    // Batch 2: Approved (Historical)
-    const batch2Id = 'BATCH-DEMO-002';
-    for (let i = 5; i < 8; i++) {
-        MOVEMENTS_MOCK.push({
-            id: `mov-a-${i}`,
-            batchId: batch2Id,
-            itemId: ITEMS[i].id,
-            fromSiteId: SITES[1].id,
-            toSiteId: SITES[3].id,
-            quantity: 50,
-            requestDate: daysAgo(10),
-            requesterId: 'u4',
-            status: 'APPROVED',
-            approvalDate: daysAgo(9)
-        });
-    }
-
-    // Batch 3: Rejected
     MOVEMENTS_MOCK.push({
         id: `mov-r-1`,
         batchId: 'BATCH-DEMO-003',

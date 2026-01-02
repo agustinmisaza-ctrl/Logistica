@@ -13,8 +13,9 @@ declare global {
   }
 
   interface Window {
-    // Using readonly and named type AIStudio to match global environment expectations
-    readonly aistudio: AIStudio;
+    // Removed readonly to avoid "All declarations of 'aistudio' must have identical modifiers" error
+    // as other environments or declarations might define this property without the readonly modifier.
+    aistudio: AIStudio;
   }
 }
 
