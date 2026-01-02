@@ -4,12 +4,27 @@ import { chatWithInventory } from '../services/geminiService';
 import { InventoryRecord } from '../types';
 import { getInventoryWithDetails } from '../services/mockDataService';
 
+// Extend window interface for AI Studio tools
+declare global {
+  // Define AIStudio interface to merge with potentially existing global declarations
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    // Using readonly and named type AIStudio to match global environment expectations
+    readonly aistudio: AIStudio;
+  }
+}
+
 interface AIChatbotProps {
   inventory: InventoryRecord[];
 }
 
 export const AIChatbot: React.FC<AIChatbotProps> = ({ inventory }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(!!process.env.API_KEY);
   const [messages, setMessages] = useState<{role: 'user' | 'model', text: string}[]>([
     { role: 'model', text: '¡Hola! Soy **MejiaBot**. Puedo ayudarte a encontrar materiales, analizar el stock estancado o consultar precios del mercado eléctrico. ¿Qué necesitas hoy?' }
   ]);
@@ -27,7 +42,27 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ inventory }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  useEffect(() => {
+    // Periodically check if API key has been injected or selected
+    const checkKey = async () => {
+        // Safe check for window.aistudio availability
+        if (window.aistudio) {
+            const selected = await window.aistudio.hasSelectedApiKey();
+            setHasApiKey(!!process.env.API_KEY || selected);
+        }
+    };
+    checkKey();
+  }, [isOpen]);
+
   useEffect(scrollToBottom, [messages, isOpen]);
+
+  const handleOpenSelectKey = async () => {
+    if (window.aistudio) {
+        await window.aistudio.openSelectKey();
+        // Assuming key selection was successful to proceed to the app as per guidelines
+        setHasApiKey(true);
+    }
+  };
 
   const handleSend = async (customQuery?: string) => {
     const userMsg = customQuery || input;
@@ -47,10 +82,20 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ inventory }) => {
         parts: [{ text: m.text }]
     }));
 
-    const response = await chatWithInventory(historyPayload, userMsg, contextSummary);
-    
-    setMessages(prev => [...prev, { role: 'model', text: response }]);
-    setLoading(false);
+    try {
+        const response = await chatWithInventory(historyPayload, userMsg, contextSummary);
+        setMessages(prev => [...prev, { role: 'model', text: response }]);
+    } catch (error: any) {
+        // If the request fails with "Requested entity was not found.", reset key selection
+        if (error.message?.includes('API_KEY missing') || error.message?.includes('Requested entity was not found')) {
+            setHasApiKey(false);
+            setMessages(prev => [...prev, { role: 'model', text: '⚠️ Tu sesión de IA ha expirado o no está configurada. Por favor, selecciona una API Key válida para continuar.' }]);
+        } else {
+            setMessages(prev => [...prev, { role: 'model', text: 'Tuve un problema conectando con mi cerebro digital. Por favor intenta en un momento.' }]);
+        }
+    } finally {
+        setLoading(false);
+    }
   };
 
   return (
@@ -67,8 +112,10 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ inventory }) => {
               <div>
                 <h3 className="font-black text-sm tracking-tight">MejiaBot Pro</h3>
                 <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">IA Operativa Online</span>
+                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${hasApiKey ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        {hasApiKey ? 'IA Operativa Online' : 'IA Desconectada'}
+                    </span>
                 </div>
               </div>
             </div>
@@ -101,6 +148,24 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ inventory }) => {
               </div>
             ))}
             
+            {!hasApiKey && (
+                <div className="flex flex-col items-center gap-4 py-8 px-4 bg-sky-50 rounded-3xl border border-sky-100 border-dashed">
+                    <div className="text-3xl">🔑</div>
+                    <p className="text-xs font-bold text-sky-800 text-center">
+                        Para conversar conmigo necesitas conectar una API Key. Usa un proyecto con facturación activa.
+                    </p>
+                    <button 
+                        onClick={handleOpenSelectKey}
+                        className="bg-sky-600 text-white font-black px-6 py-3 rounded-xl shadow-lg shadow-sky-200 hover:bg-sky-700 transition-all active:scale-95"
+                    >
+                        Conectar IA
+                    </button>
+                    <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-[10px] text-sky-400 font-black uppercase hover:underline">
+                        Docs de Facturación ↗
+                    </a>
+                </div>
+            )}
+
             {loading && (
               <div className="flex justify-start">
                  <div className="bg-white border border-slate-200 rounded-2xl p-4 rounded-bl-none shadow-sm flex gap-1.5">
@@ -115,7 +180,7 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ inventory }) => {
 
           {/* Input & Quick Actions */}
           <div className="p-5 bg-white border-t border-slate-100">
-            {messages.length < 4 && !loading && (
+            {hasApiKey && messages.length < 5 && !loading && (
                 <div className="flex flex-wrap gap-2 mb-4">
                     {quickActions.map((action, i) => (
                         <button 
@@ -131,16 +196,17 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ inventory }) => {
 
             <div className="relative">
               <input
+                disabled={!hasApiKey}
                 type="text"
-                className="w-full bg-slate-100 border-none rounded-2xl pl-5 pr-12 py-4 text-sm font-bold focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                placeholder="Pregunta a la IA..."
+                className="w-full bg-slate-100 border-none rounded-2xl pl-5 pr-12 py-4 text-sm font-bold focus:ring-2 focus:ring-sky-500 outline-none transition-all disabled:opacity-50"
+                placeholder={hasApiKey ? "Pregunta a la IA..." : "Conecta la IA para chatear"}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               />
               <button 
                 onClick={() => handleSend()}
-                disabled={loading || !input.trim()}
+                disabled={loading || !input.trim() || !hasApiKey}
                 className="absolute right-2 top-2 w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center transition-all hover:bg-sky-600 active:scale-90 disabled:opacity-20"
               >
                 <span className="text-lg">➤</span>

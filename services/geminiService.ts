@@ -1,13 +1,17 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
+// Helper to get fresh AI instance
+const getAI = () => {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) throw new Error("API_KEY missing");
+    return new GoogleGenAI({ apiKey });
+};
+
 // Semantic search for materials
 export const semanticSearchItems = async (query: string, itemsContext: string): Promise<string[]> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) return [];
-  
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       config: {
@@ -42,18 +46,16 @@ export const semanticSearchItems = async (query: string, itemsContext: string): 
     return result.recommendedSkus;
   } catch (error) {
     console.error("Semantic Search Error:", error);
-    return [];
+    throw error;
   }
 };
 
 export const getKPIBenchmarks = async (currentMetrics: any): Promise<any> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) return null;
-
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      // Analysis tasks are treated as complex text tasks: Use gemini-3-pro-preview
+      model: 'gemini-3-pro-preview',
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -87,18 +89,16 @@ export const getKPIBenchmarks = async (currentMetrics: any): Promise<any> => {
     return JSON.parse(response.text || "{}");
   } catch (error) {
     console.error("Benchmark Error:", error);
-    return null;
+    throw error;
   }
 };
 
 export const parseCorteDeObra = async (rawText: string, catalogContext: string): Promise<any> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key missing");
-
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      // Data extraction and catalog matching requires advanced reasoning: Use gemini-3-pro-preview
+      model: 'gemini-3-pro-preview',
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -131,18 +131,17 @@ export const parseCorteDeObra = async (rawText: string, catalogContext: string):
     
     return JSON.parse(response.text || "{}");
   } catch (error) {
-    throw new Error("No se pudo procesar el reporte.");
+    console.error("Parse Error:", error);
+    throw error;
   }
 };
 
 export const analyzeInventory = async (inventorySummary: string, stagnantItems: string): Promise<any> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) return null;
-
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = getAI();
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      // Strategic analysis is a complex reasoning task: Use gemini-3-pro-preview
+      model: 'gemini-3-pro-preview',
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -176,7 +175,8 @@ export const analyzeInventory = async (inventorySummary: string, stagnantItems: 
     });
     return JSON.parse(response.text || "{}");
   } catch (error) {
-    return null;
+    console.error("Analysis Error:", error);
+    throw error;
   }
 };
 
@@ -185,11 +185,8 @@ export const chatWithInventory = async (
   message: string, 
   contextData: string
 ) => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) return "Configuración de IA incompleta (API_KEY missing).";
-
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = getAI();
     const chat = ai.chats.create({
       model: 'gemini-3-flash-preview',
       config: {
@@ -215,6 +212,6 @@ export const chatWithInventory = async (
     return finalText;
   } catch (error: any) {
     console.error("Chat Error:", error);
-    return "Tuve un problema conectando con mi cerebro digital. Por favor intenta en un momento.";
+    throw error;
   }
 };

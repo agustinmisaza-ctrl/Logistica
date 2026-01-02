@@ -8,12 +8,10 @@
     
     <!-- Robust Process Shim for Browser Environments -->
     <script>
-      window.process = { 
-        env: { 
-          API_KEY: "" 
-        },
-        cwd: () => "/"
-      };
+      // Only initialize process.env if it doesn't exist, and don't clobber existing API_KEY
+      window.process = window.process || {};
+      window.process.env = window.process.env || {};
+      window.process.cwd = () => "/";
       
       // Global error handler for easier debugging on deployed site
       window.onerror = function(message, source, lineno, colno, error) {
@@ -104,8 +102,6 @@
             <p style="font-size: 12px; color: #94a3b8;">Iniciando sistema de logística...</p>
         </div>
     </div>
-    
-    <!-- El navegador debe ser capaz de procesar .tsx si el entorno (como el que estás usando) lo soporta -->
     <script type="module" src="./index.tsx"></script>
 </body>
 </html>
