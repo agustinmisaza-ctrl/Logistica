@@ -159,25 +159,23 @@ const populateDemo = () => {
     }
 
     // 2. POPULATE INVENTORY WITH ~50% HEALTH TARGET
-    // To get ~50% Health:
-    // - High Dead Stock Rate (~40% of value stagnant)
-    // - Moderate Stockout Rate (~10% of items)
-    // - Low ITR (Turnover)
+    // Health Score = 100 - (deadStockRate * 1.5) - (stockoutRate * 2) + bonus
+    // Target: DeadStockRate ~33%, StockoutRate ~10%
     
     ITEMS.forEach((item, itemIdx) => {
         const itemSites = SITES.slice(0, 8); 
         itemSites.forEach((site, siteIdx) => {
             const isWarehouse = site.type === SiteType.BODEGA_CENTRAL;
             
-            // INDUCE STAGNATION: If item index is even, make it old (Aging > 90 days)
-            const isStagnant = itemIdx % 2 === 0;
-            const agingDays = isStagnant ? 95 + Math.floor(Math.random() * 60) : 5 + Math.floor(Math.random() * 20);
+            // Adjust stagnation to reach ~33% value dead stock (1 in 3 items is old)
+            const isStagnant = (itemIdx + siteIdx) % 3 === 0;
+            const agingDays = isStagnant ? 95 + Math.floor(Math.random() * 45) : 12 + Math.floor(Math.random() * 20);
             
-            // INDUCE STOCKOUTS: Every 5th item has low qty
-            const isStockout = itemIdx % 5 === 0 && !isWarehouse;
-            const baseQty = isWarehouse ? 1000 : (isStockout ? 2 : 50 + Math.floor(Math.random() * 150));
+            // Adjust stockouts to reach ~10% items (1 in 10 is low)
+            const isStockout = itemIdx % 10 === 0 && !isWarehouse;
+            const baseQty = isWarehouse ? 2500 : (isStockout ? 2 : 120 + Math.floor(Math.random() * 250));
             
-            // Current Stock
+            // Current Stock Record
             INVENTORY_MOCK.push({
                 id: `inv-${item.id}-${site.id}`,
                 itemId: item.id,
@@ -186,12 +184,27 @@ const populateDemo = () => {
                 lastMovedDate: daysAgo(agingDays)
             });
 
-            // Historical Transactions (Rotation)
-            // If stagnant, few or no consumption transactions recently
+            // 3. MERMA / WASTAGE LOGIC
+            // Entry transactions must exceed Current Stock + Installed Quantity to show Wastage
+            const installedQty = isWarehouse ? 0 : Math.floor(baseQty * 0.4); // 40% installed
+            const wastageInduced = isWarehouse ? 0 : Math.ceil(baseQty * 0.06); // 6% wastage
+            const entryQty = baseQty + installedQty + wastageInduced;
+
+            // Historical Transactions (ENTRY)
+            TRANSACTIONS_MOCK.push({
+                id: `tx-entry-${item.id}-${site.id}`,
+                itemId: item.id,
+                siteId: site.id,
+                quantity: entryQty,
+                date: daysAgo(agingDays + 10),
+                type: 'ENTRY'
+            });
+
+            // Historical Consumption (To avoid 0% turnover)
             if (!isStagnant) {
                 for (let d = 1; d <= 3; d++) {
                     TRANSACTIONS_MOCK.push({
-                        id: `tx-${item.id}-${site.id}-${d}`,
+                        id: `tx-cons-${item.id}-${site.id}-${d}`,
                         itemId: item.id,
                         siteId: site.id,
                         quantity: Math.floor(baseQty * 0.1),
@@ -199,32 +212,22 @@ const populateDemo = () => {
                         type: 'CONSUMPTION'
                     });
                 }
-            } else {
-                // Stagnant items only have entries from 4 months ago
-                TRANSACTIONS_MOCK.push({
-                    id: `tx-old-${item.id}-${site.id}`,
-                    itemId: item.id,
-                    siteId: site.id,
-                    quantity: baseQty,
-                    date: daysAgo(120),
-                    type: 'ENTRY'
-                });
             }
 
-            // Project Progress
-            if (!isWarehouse && itemIdx % 3 === 0) {
+            // Project Progress Record
+            if (!isWarehouse && (itemIdx % 2 === 0)) {
                 PROGRESS_MOCK.push({
                     id: `prog-${item.id}-${site.id}`,
                     siteId: site.id,
                     itemId: item.id,
-                    quantityInstalled: Math.floor(baseQty * 0.5),
-                    lastReportDate: daysAgo(2)
+                    quantityInstalled: installedQty,
+                    lastReportDate: daysAgo(3)
                 });
             }
         });
     });
 
-    // 3. POPULATE MOVEMENTS
+    // 4. POPULATE MOVEMENTS
     const batch1Id = 'BATCH-DEMO-001';
     for (let i = 0; i < 4; i++) {
         MOVEMENTS_MOCK.push({

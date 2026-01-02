@@ -78,17 +78,21 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
   const COLORS = ['#0ea5e9', '#f59e0b', '#ef4444', '#64748b'];
 
   // --- Drillthrough Handlers ---
-  const handleStatusClick = (data: any) => {
-    if (data && data.name) {
-        setFilterStatus(data.name);
+  const handleStatusClick = (entry: any) => {
+    // Recharts passes the data object differently depending on context
+    const statusName = entry.name || (entry.activePayload && entry.activePayload[0].name);
+    if (statusName) {
+        setFilterStatus(statusName);
         setFilterSite('ALL');
         setViewMode('list');
     }
   };
 
-  const handleSiteClick = (data: any) => {
-    if (data && data.id) {
-        setFilterSite(data.id);
+  const handleSiteClick = (entry: any) => {
+    // Extract ID from entry payload or direct object
+    const siteId = entry.id || (entry.activePayload && entry.activePayload[0].payload.id);
+    if (siteId) {
+        setFilterSite(siteId);
         setFilterStatus('ALL');
         setViewMode('list');
     }
@@ -164,7 +168,7 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                         <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Distribución de Estado</h4>
                         <span className="text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-full">INTERACTIVO</span>
                       </div>
-                      <div className="h-64 w-full cursor-pointer">
+                      <div className="h-64 w-full">
                           <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
                                   <Pie
@@ -176,7 +180,8 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                                       paddingAngle={5}
                                       dataKey="value"
                                       stroke="none"
-                                      onClick={handleStatusClick}
+                                      onClick={(data) => handleStatusClick(data)}
+                                      style={{ cursor: 'pointer' }}
                                   >
                                       {statsData.statusChartData.map((entry, index) => (
                                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="hover:opacity-80 transition-opacity" />
@@ -189,7 +194,7 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                               </PieChart>
                           </ResponsiveContainer>
                       </div>
-                      <p className="text-[9px] text-slate-400 mt-4 font-bold italic">Haga clic en un segmento para filtrar la tabla</p>
+                      <p className="text-[9px] text-slate-400 mt-4 font-bold italic text-center">Haga clic en un segmento para filtrar la tabla</p>
                   </div>
 
                   {/* Site Distribution (Bar) */}
@@ -198,9 +203,9 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                         <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Herramientas por Proyecto</h4>
                         <span className="text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-full">CLICK PARA DRILLTHROUGH</span>
                       </div>
-                      <div className="h-64 cursor-pointer">
+                      <div className="h-64">
                           <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={statsData.siteChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }} onClick={handleSiteClick}>
+                              <BarChart data={statsData.siteChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }} onClick={(data) => handleSiteClick(data)}>
                                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} />
                                   <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} />
@@ -209,7 +214,14 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                                     contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
                                     formatter={(val) => [`${val} Equipos`, 'Stock']}
                                   />
-                                  <Bar dataKey="tools" fill="#0ea5e9" radius={[10, 10, 0, 0]} barSize={32} className="hover:opacity-80 transition-opacity" />
+                                  <Bar 
+                                    dataKey="tools" 
+                                    fill="#0ea5e9" 
+                                    radius={[10, 10, 0, 0]} 
+                                    barSize={32} 
+                                    className="hover:opacity-80 transition-opacity" 
+                                    style={{ cursor: 'pointer' }}
+                                  />
                               </BarChart>
                           </ResponsiveContainer>
                       </div>
@@ -239,21 +251,17 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                               {processedTools
                                 .filter(t => t.maintenanceAlert !== 'OK')
                                 .sort((a, b) => a.daysToMaintenance - b.daysToMaintenance)
-                                .slice(0, 6)
+                                .slice(0, 5)
                                 .map(tool => (
-                                    <tr key={tool.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => { setFilterSite(tool.siteId); setViewMode('list'); setSearchTerm(tool.serialNumber); }}>
+                                    <tr key={tool.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-8 py-4">
                                             <div className="font-bold text-slate-800">{tool.name}</div>
-                                            <div className="text-[10px] text-slate-400 font-mono">{tool.brand} • {tool.serialNumber}</div>
+                                            <div className="text-[10px] text-slate-400 font-mono">{tool.serialNumber}</div>
                                         </td>
-                                        <td className="px-8 py-4">
-                                            <span className="font-bold text-slate-600">{tool.siteName}</span>
-                                        </td>
-                                        <td className="px-8 py-4">
-                                            <span className="font-black text-slate-800">{new Date(tool.nextMaintenanceDate).toLocaleDateString()}</span>
-                                        </td>
+                                        <td className="px-8 py-4 text-slate-500 font-bold">{tool.siteName}</td>
+                                        <td className="px-8 py-4 text-slate-600 font-black">{new Date(tool.nextMaintenanceDate).toLocaleDateString()}</td>
                                         <td className="px-8 py-4 text-center">
-                                            <span className={`text-[9px] px-2.5 py-1 rounded-full font-black border uppercase ${
+                                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border ${
                                                 tool.maintenanceAlert === 'OVERDUE' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-orange-50 text-orange-600 border-orange-100'
                                             }`}>
                                                 {tool.maintenanceAlert === 'OVERDUE' ? 'VENCIDO' : 'PRÓXIMO'}
@@ -261,10 +269,10 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                                         </td>
                                         <td className="px-8 py-4 text-right">
                                             <button 
-                                                onClick={(e) => { e.stopPropagation(); onUpdateStatus(tool.id, ToolStatus.MANTENIMIENTO); }}
-                                                className="text-sky-600 font-black text-xs hover:underline"
+                                                onClick={() => { setFilterSite(tool.siteId); setViewMode('list'); setSearchTerm(tool.serialNumber); }}
+                                                className="text-sky-600 font-black text-[10px] hover:underline uppercase"
                                             >
-                                                Gestionar
+                                                Ver Detalles
                                             </button>
                                         </td>
                                     </tr>
@@ -276,127 +284,109 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
               </div>
           </div>
       ) : (
-          <div className="space-y-6">
-              {/* Filters */}
-              <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center animate-fade-in-down">
-                  <div className="flex-1 min-w-[300px] relative group">
-                    <input 
+          <div className="animate-fade-in-up">
+              {/* Controls */}
+              <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-end">
+                  <div className="flex-1 w-full">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Buscar Equipo</label>
+                      <input 
                         type="text" 
-                        placeholder="Buscar por nombre, marca o serial..." 
-                        className="w-full border-2 border-slate-100 bg-slate-50 rounded-2xl px-5 py-3 text-sm font-bold focus:bg-white focus:border-sky-500 outline-none transition-all"
+                        placeholder="Nombre, marca o serie..."
+                        className="w-full border-2 border-slate-50 bg-slate-50 rounded-2xl px-5 py-3 text-sm font-bold focus:bg-white focus:border-sky-500 outline-none transition-all"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    {searchTerm && (
-                      <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">✕</button>
-                    )}
+                      />
                   </div>
-                  
-                  {!currentUser.assignedSiteId && (
+                  <div className="w-full md:w-64">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Obra / Proyecto</label>
                       <select 
-                          className="border-2 border-slate-100 bg-slate-50 rounded-2xl px-4 py-3 text-xs font-black uppercase focus:bg-white focus:border-sky-500 outline-none"
-                          value={filterSite}
-                          onChange={(e) => setFilterSite(e.target.value)}
+                        className="w-full border-2 border-slate-50 bg-slate-50 rounded-2xl px-4 py-3 text-xs font-black uppercase outline-none focus:bg-white focus:border-sky-500"
+                        value={filterSite}
+                        onChange={(e) => setFilterSite(e.target.value)}
                       >
-                          <option value="ALL">Todas las Obras</option>
+                          <option value="ALL">Todas las obras</option>
                           {SITES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
-                  )}
-
-                  <select 
-                      className="border-2 border-slate-100 bg-slate-50 rounded-2xl px-4 py-3 text-xs font-black uppercase focus:bg-white focus:border-sky-500 outline-none"
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                  >
-                      <option value="ALL">Todos los Estados</option>
-                      <option value={ToolStatus.OPERATIVA}>Operativa</option>
-                      <option value={ToolStatus.MANTENIMIENTO}>Mantenimiento</option>
-                      <option value={ToolStatus.BAJA}>De Baja</option>
-                      <option value={ToolStatus.REPARACION}>Reparación</option>
-                  </select>
-
-                  {(filterSite !== 'ALL' || filterStatus !== 'ALL' || searchTerm !== '') && (
-                    <button 
-                      onClick={() => { setFilterSite('ALL'); setFilterStatus('ALL'); setSearchTerm(''); }}
-                      className="text-[10px] font-black text-red-500 uppercase hover:underline"
-                    >
-                      Limpiar Filtros
-                    </button>
-                  )}
-              </div>
-
-              {/* Tools Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredTools.slice(0, 50).map(tool => (
-                    <div key={tool.id} className="bg-white rounded-[32px] shadow-sm border border-slate-200 p-6 hover:shadow-xl hover:border-sky-200 transition-all group flex flex-col justify-between animate-fade-in-up">
-                        <div>
-                            <div className="flex justify-between items-start mb-4">
-                                <span className="text-[9px] font-black text-sky-600 bg-sky-50 px-2.5 py-1 rounded-full uppercase tracking-widest">{tool.category}</span>
-                                <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase border ${
-                                    tool.status === ToolStatus.OPERATIVA ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
-                                    tool.status === ToolStatus.BAJA ? 'bg-slate-100 text-slate-500 border-slate-200' : 'bg-red-50 text-red-700 border-red-100'
-                                }`}>
-                                    {tool.status}
-                                </span>
-                            </div>
-                            <h3 className="font-black text-slate-800 group-hover:text-sky-600 transition-colors">{tool.name}</h3>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">{tool.brand} • SN: {tool.serialNumber}</p>
-                            
-                            <div className="space-y-3 text-xs border-t border-slate-50 pt-4 mt-4">
-                                <div className="flex justify-between">
-                                    <span className="text-slate-400 font-bold uppercase text-[9px]">Ubicación</span>
-                                    <span className="font-black text-slate-700 truncate max-w-[120px]">{tool.siteName}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-slate-400 font-bold uppercase text-[9px]">Mantenimiento</span>
-                                    <div className="text-right">
-                                         <div className={`font-black ${
-                                             tool.maintenanceAlert === 'OVERDUE' ? 'text-red-600' :
-                                             tool.maintenanceAlert === 'SOON' ? 'text-orange-600' : 'text-slate-800'
-                                         }`}>
-                                            {new Date(tool.nextMaintenanceDate).toLocaleDateString()}
-                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="mt-6 pt-4 border-t border-slate-50 flex gap-2 no-print">
-                            {tool.status === ToolStatus.OPERATIVA && (
-                                <>
-                                    <button 
-                                        onClick={() => onUpdateStatus(tool.id, ToolStatus.MANTENIMIENTO)}
-                                        className="flex-1 bg-orange-50 hover:bg-orange-600 hover:text-white text-orange-700 text-[10px] py-2.5 rounded-xl font-black transition-all border border-orange-100 uppercase"
-                                    >
-                                        Mantenimiento
-                                    </button>
-                                    <button 
-                                        onClick={() => onUpdateStatus(tool.id, ToolStatus.REPARACION)}
-                                        className="flex-1 bg-red-50 hover:bg-red-600 hover:text-white text-red-700 text-[10px] py-2.5 rounded-xl font-black transition-all border border-red-100 uppercase"
-                                    >
-                                        Falla
-                                    </button>
-                                </>
-                            )}
-                            {(tool.status === ToolStatus.MANTENIMIENTO || tool.status === ToolStatus.REPARACION) && (
-                                <button 
-                                    onClick={() => onUpdateStatus(tool.id, ToolStatus.OPERATIVA)}
-                                    className="flex-1 bg-emerald-600 text-white text-[10px] py-2.5 rounded-xl font-black shadow-lg shadow-emerald-100 transition-all uppercase"
-                                >
-                                    Marcar Operativa
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                ))}
-              </div>
-              
-              {filteredTools.length === 0 && (
-                  <div className="text-center py-20 bg-white rounded-[40px] border border-slate-200">
-                      <p className="text-slate-400 font-black uppercase text-xs">No se encontraron herramientas con los filtros actuales</p>
-                      <button onClick={() => { setFilterSite('ALL'); setFilterStatus('ALL'); setSearchTerm(''); }} className="mt-4 text-sky-600 font-black text-xs uppercase underline">Mostrar todo</button>
                   </div>
-              )}
+                  <div className="w-full md:w-64">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Estado Operativo</label>
+                      <select 
+                        className="w-full border-2 border-slate-50 bg-slate-50 rounded-2xl px-4 py-3 text-xs font-black uppercase outline-none focus:bg-white focus:border-sky-500"
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                      >
+                          <option value="ALL">Todos los estados</option>
+                          <option value={ToolStatus.OPERATIVA}>Operativa</option>
+                          <option value={ToolStatus.MANTENIMIENTO}>Mantenimiento</option>
+                          <option value={ToolStatus.REPARACION}>Reparación</option>
+                          <option value={ToolStatus.BAJA}>Baja</option>
+                      </select>
+                  </div>
+                  <button 
+                    onClick={() => { setFilterSite('ALL'); setFilterStatus('ALL'); setSearchTerm(''); }}
+                    className="px-4 py-3 text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase"
+                  >
+                    Reset
+                  </button>
+              </div>
+
+              {/* Grid List */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredTools.map(tool => (
+                      <div key={tool.id} className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden group hover:border-sky-300 transition-all flex flex-col">
+                          <div className="p-6">
+                              <div className="flex justify-between items-start mb-4">
+                                  <div>
+                                      <h4 className="font-black text-slate-800 text-lg leading-tight group-hover:text-sky-600 transition-colors">{tool.name}</h4>
+                                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tool.brand} • SN: {tool.serialNumber}</p>
+                                  </div>
+                                  <span className={`text-[10px] px-2.5 py-1 rounded-full font-black uppercase border ${
+                                      tool.status === ToolStatus.OPERATIVA ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                                      tool.status === ToolStatus.MANTENIMIENTO ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                      'bg-red-50 text-red-600 border-red-100'
+                                  }`}>
+                                      {tool.status}
+                                  </span>
+                              </div>
+
+                              <div className="space-y-3 bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                                  <div className="flex justify-between text-xs">
+                                      <span className="text-slate-400 font-bold uppercase tracking-tighter">Ubicación Actual</span>
+                                      <span className="text-slate-700 font-black">{tool.siteName}</span>
+                                  </div>
+                                  <div className="flex justify-between text-xs">
+                                      <span className="text-slate-400 font-bold uppercase tracking-tighter">Próximo Mantenimiento</span>
+                                      <span className={`font-black ${tool.daysToMaintenance < 0 ? 'text-red-600' : 'text-slate-700'}`}>
+                                          {new Date(tool.nextMaintenanceDate).toLocaleDateString()}
+                                      </span>
+                                  </div>
+                                  <div className="flex justify-between text-xs">
+                                      <span className="text-slate-400 font-bold uppercase tracking-tighter">Garantía hasta</span>
+                                      <span className="text-slate-700 font-black">{new Date(tool.warrantyExpirationDate).toLocaleDateString()}</span>
+                                  </div>
+                              </div>
+                          </div>
+                          
+                          <div className="p-6 pt-0 mt-auto">
+                              <div className="flex gap-2">
+                                  <select 
+                                    className="flex-1 bg-slate-100 border-none rounded-xl px-4 py-2 text-[10px] font-black uppercase text-slate-600 outline-none focus:ring-2 focus:ring-sky-500"
+                                    value={tool.status}
+                                    onChange={(e) => onUpdateStatus(tool.id, e.target.value as ToolStatus)}
+                                  >
+                                      <option value={ToolStatus.OPERATIVA}>Operativa</option>
+                                      <option value={ToolStatus.MANTENIMIENTO}>Taller</option>
+                                      <option value={ToolStatus.REPARACION}>Reparación</option>
+                                      <option value={ToolStatus.BAJA}>Dar de Baja</option>
+                                  </select>
+                                  <button className="bg-sky-600 text-white p-2 rounded-xl hover:bg-sky-700 transition-colors shadow-lg shadow-sky-100">
+                                      📝
+                                  </button>
+                              </div>
+                          </div>
+                      </div>
+                  ))}
+              </div>
           </div>
       )}
     </div>
