@@ -52,30 +52,7 @@ const REAL_INVENTORY_SOURCE = [
   { sku: "004640", name: "TABLERO 3F 12 CTOS ESPACIO PARA TOTALIZADOR SCHNEIDER", qty: 61, val: 16559359 },
   { sku: "63915", name: "LUMINARIA LED TIPO HERMÉTICA 36W EMERGENCIA", qty: 164, val: 61664000 },
   { sku: "47078", name: "TRANSFORMADOR PARA 800KVA BT-BT", qty: 2, val: 110424800 },
-  { sku: "017197", name: "INVERSOR HUAWEI SUN2000 80K-MGL0 220V", qty: 2, val: 37539600 },
-  { sku: "47212", name: "T-DISTRIBUCIÓN ALUMBRADO – TOMAS - DATACENTER C4 DU", qty: 1, val: 62750000 },
-  { sku: "47204", name: "CELDA GENERAL TRANSFERENCIA A 480VAC LABORATORIOS", qty: 1, val: 62502000 },
-  { sku: "47079", name: "TRANSFORMADOR PARA 630KVA BT-BT", qty: 1, val: 47433000 },
-  { sku: "68951", name: "TABLERO 103COLP-01", qty: 1, val: 44635841 },
-  { sku: "70673", name: "LUMINARIA LED TIPO HIGH BAY 174W", qty: 64, val: 46425600 },
-  { sku: "68949", name: "TABLERO BANCO CONDENSADORES 75 KVAR", qty: 1, val: 40468180 },
-  { sku: "002862", name: "GRAPA GALVAN DOBLE ALA 3/4\"", qty: 7230, val: 1357378 },
-  { sku: "001992", name: "CONECTOR RESORTE GARDEN - BENDER 10-12 ROJO", qty: 15557, val: 3075006 },
-  { sku: "001714", name: "CHAZO NYLON DE 1/4 X 1.1/2\"", qty: 12631, val: 1809511 },
-  { sku: "001722", name: "CHAZO PLASTICO SUPRA 1/4X1,1/4\"", qty: 10103, val: 1754605 },
-  { sku: "006017", name: "MARCACION TIPO ANILLO AR1", qty: 5662, val: 905920 },
-  { sku: "004986", name: "TERMINAL DE OJO 10-12 DE 1/4", qty: 8199, val: 1721645 },
-  { sku: "000266", name: "ARANDELA 1/4", qty: 6935, val: 496623 },
-  { sku: "005330", name: "TORNILLO CABEZA LENTEJA 1/4X1/2\"", qty: 3958, val: 404247 },
-  { sku: "002196", name: "CAJA DE EMPALME 12X12X5 GRIS", qty: 865, val: 3559541 },
-  { sku: "71132", name: "CABLE GENESIS 2X16 SIN BLINDAR CARRETE", qty: 1206, val: 3453550 },
-  { sku: "001190", name: "CABLE FIBRA OPTICA MULT. 12HILOS 50/125 LEVITON", qty: 20, val: 295800 },
-  { sku: "001325", name: "CABLE UTP CATEGORIA 6A", qty: 1016, val: 2331377 },
-  { sku: "002556", name: "ESPARRAGO DE 3/8 X 3 MTRS", qty: 445, val: 4077769 },
-  { sku: "001170", name: "CABLE ENCAUCHETADO 3X16", qty: 512, val: 1937034 },
-  { sku: "005132", name: "TOMA DOBLE LEVITON BLANCO PAT", qty: 645, val: 3351137 },
-  { sku: "006294", name: "SOPORTE BEAM CLAMP 3/8", qty: 574, val: 3359076 },
-  { sku: "003841", name: "PERFIL RANURADO 4X4 X 3MTS GALVANIZADO", qty: 120, val: 5200698 }
+  { sku: "017197", name: "INVERSOR HUAWEI SUN2000 80K-MGL0 220V", qty: 2, val: 37539600 }
 ];
 
 const determineCategory = (name: string): Item['category'] => {
@@ -145,122 +122,138 @@ const daysForward = (days: number) => {
     return d.toISOString();
 };
 
-// --- POPULATE TOOLS DATA ---
-const populateTools = () => {
-  const toolTemplates = [
-    { name: 'Taladro Percutor 1/2"', brand: 'Bosch', category: 'ELECTRICA' as const },
-    { name: 'Amoladora Angular 4-1/2"', brand: 'Makita', category: 'ELECTRICA' as const },
-    { name: 'Multímetro Digital True RMS', brand: 'Fluke', category: 'MEDICION' as const },
-    { name: 'Pinza Voltamperimétrica', brand: 'Fluke', category: 'MEDICION' as const },
-    { name: 'Martillo Demoledor 15Kg', brand: 'Hilti', category: 'ELECTRICA' as const },
-    { name: 'Nivel Láser Autonivelante', brand: 'Dewalt', category: 'MEDICION' as const },
-    { name: 'Rotomartillo SDS Plus', brand: 'Milwaukee', category: 'ELECTRICA' as const },
-    { name: 'Sierra Circular 7-1/4"', brand: 'Bosch', category: 'ELECTRICA' as const },
-    { name: 'Doblador de Tubo EMT 3/4"', brand: 'Greenlee', category: 'MANUAL' as const },
-    { name: 'Juego de Destornilladores Dieléctricos', brand: 'Klein Tools', category: 'MANUAL' as const },
-    { name: 'Pistola de Calor Industrial', brand: 'Steinel', category: 'ELECTRICA' as const },
-    { name: 'Analizador de Redes Trifásico', brand: 'Fluke', category: 'MEDICION' as const },
-    { name: 'Arnés de Seguridad 4 Puntos', brand: 'MSA', category: 'SEGURIDAD' as const },
-    { name: 'Escalera de Tijera Dieléctrica 8ft', brand: 'Werner', category: 'SEGURIDAD' as const },
-    { name: 'Ponchadora Hidráulica 12 Ton', brand: 'Burndy', category: 'ELECTRICA' as const }
-  ];
+// --- POPULATE DATA ---
+const populateDemo = () => {
+    // 1. POPULATE TOOLS (already enhanced previously)
+    const toolTemplates = [
+        { name: 'Taladro Percutor 1/2"', brand: 'Bosch', category: 'ELECTRICA' as const },
+        { name: 'Amoladora Angular 4-1/2"', brand: 'Makita', category: 'ELECTRICA' as const },
+        { name: 'Multímetro Digital True RMS', brand: 'Fluke', category: 'MEDICION' as const },
+        { name: 'Pinza Voltamperimétrica', brand: 'Fluke', category: 'MEDICION' as const },
+        { name: 'Martillo Demoledor 15Kg', brand: 'Hilti', category: 'ELECTRICA' as const },
+        { name: 'Ponchadora Hidráulica 12 Ton', brand: 'Burndy', category: 'ELECTRICA' as const }
+    ];
 
-  for (let i = 0; i < 45; i++) {
-    const template = toolTemplates[i % toolTemplates.length];
-    const site = SITES[Math.floor(Math.random() * SITES.length)];
-    const statusRand = Math.random();
-    
-    let status: ToolStatus = ToolStatus.OPERATIVA;
-    if (statusRand > 0.85) status = ToolStatus.MANTENIMIENTO;
-    else if (statusRand > 0.95) status = ToolStatus.REPARACION;
+    for (let i = 0; i < 45; i++) {
+        const template = toolTemplates[i % toolTemplates.length];
+        const site = SITES[Math.floor(Math.random() * SITES.length)];
+        const statusRand = Math.random();
+        let status: ToolStatus = ToolStatus.OPERATIVA;
+        if (statusRand > 0.9) status = ToolStatus.MANTENIMIENTO;
+        else if (statusRand > 0.95) status = ToolStatus.REPARACION;
 
-    // Lógica para alertas de mantenimiento (vencidos, pronto, lejos)
-    let nextMaintDays = 0;
-    if (i % 5 === 0) nextMaintDays = -Math.floor(Math.random() * 15 + 1); // Vencido
-    else if (i % 7 === 0) nextMaintDays = Math.floor(Math.random() * 6); // Pronto (0-5 días)
-    else nextMaintDays = Math.floor(Math.random() * 90 + 10); // Lejos
+        let nextMaintDays = (i % 8 === 0) ? -Math.floor(Math.random() * 5 + 1) : Math.floor(Math.random() * 60 + 5);
 
-    TOOLS_MOCK.push({
-      id: `tool-${i + 1}`,
-      name: `${template.name} #${i + 101}`,
-      serialNumber: `SN-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
-      brand: template.brand,
-      siteId: site.id,
-      purchaseDate: daysAgo(Math.floor(Math.random() * 500 + 100)),
-      warrantyExpirationDate: daysForward(Math.floor(Math.random() * 300 - 50)),
-      nextMaintenanceDate: daysForward(nextMaintDays),
-      status: status,
-      category: template.category
-    });
-  }
-};
+        TOOLS_MOCK.push({
+            id: `tool-${i + 1}`,
+            name: `${template.name} #${i + 101}`,
+            serialNumber: `SN-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+            brand: template.brand,
+            siteId: site.id,
+            purchaseDate: daysAgo(Math.floor(Math.random() * 400 + 100)),
+            warrantyExpirationDate: daysForward(Math.floor(Math.random() * 200 + 30)),
+            nextMaintenanceDate: daysForward(nextMaintDays),
+            status: status,
+            category: template.category
+        });
+    }
 
-(() => {
-    populateTools();
-
-    REAL_INVENTORY_SOURCE.forEach((row, idx) => {
-        let remainingQty = row.qty;
-        if (remainingQty <= 0) return;
-        const cat = determineCategory(row.name);
-        const numberOfSites = Math.floor(Math.random() * 4) + 1; 
-        
-        for (let i = 0; i < numberOfSites; i++) {
-            if (remainingQty <= 0) break;
-            const site = SITES[Math.floor(Math.random() * SITES.length)];
-            let qtyForSite = (i === numberOfSites - 1) ? remainingQty : Math.floor(remainingQty * (0.2 + Math.random() * 0.3));
-            if (qtyForSite > remainingQty) qtyForSite = remainingQty;
-            if (qtyForSite === 0) continue;
-            remainingQty -= qtyForSite;
-
-            const recordId = `inv-${row.sku}-${site.id}`;
-            let idleDays = cat === 'CABLES' ? Math.floor(Math.random() * 10) : (cat === 'PROTECCION' ? Math.floor(Math.random() * 100) + 20 : Math.floor(Math.random() * 45));
-
+    // 2. POPULATE INVENTORY, TRANSACTIONS, PROGRESS
+    ITEMS.forEach((item, itemIdx) => {
+        const itemSites = SITES.slice(0, 8); // Spread across first 8 sites
+        itemSites.forEach((site, siteIdx) => {
+            const isWarehouse = site.type === SiteType.BODEGA_CENTRAL;
+            const baseQty = isWarehouse ? 1000 + (itemIdx * 10) : 50 + Math.floor(Math.random() * 200);
+            
+            // Current Stock
             INVENTORY_MOCK.push({
-                id: recordId,
-                itemId: row.sku,
+                id: `inv-${item.id}-${site.id}`,
+                itemId: item.id,
                 siteId: site.id,
-                quantity: qtyForSite,
-                lastMovedDate: daysAgo(idleDays)
+                quantity: baseQty,
+                lastMovedDate: daysAgo(Math.floor(Math.random() * 40))
             });
 
-            // GESTIÓN DE DESPERDICIO REALISTA:
-            if (site.type !== SiteType.BODEGA_CENTRAL) {
-                const wastageFactor = cat === 'CABLES' ? 0.08 : (cat === 'TUBERIA' ? 0.05 : 0.02);
-                const randomWastage = wastageFactor * (Math.random() * 1.5); 
-                
-                const installedQty = Math.floor(qtyForSite * 1.5); 
-                const lostQty = Math.floor((qtyForSite + installedQty) * randomWastage);
-                const totalEntries = qtyForSite + installedQty + lostQty;
-
+            // Historical Transactions (Rotation)
+            for (let d = 1; d <= 5; d++) {
+                const typeRand = Math.random();
                 TRANSACTIONS_MOCK.push({
-                    id: `tx_entry_${recordId}`,
-                    itemId: row.sku,
+                    id: `tx-${item.id}-${site.id}-${d}`,
+                    itemId: item.id,
                     siteId: site.id,
-                    quantity: totalEntries,
-                    date: daysAgo(Math.floor(Math.random() * 60) + 10),
-                    type: 'ENTRY'
-                });
-
-                PROGRESS_MOCK.push({
-                    id: `prog-${recordId}`,
-                    siteId: site.id,
-                    itemId: row.sku,
-                    quantityInstalled: installedQty,
-                    lastReportDate: daysAgo(2)
-                });
-            } else {
-                TRANSACTIONS_MOCK.push({
-                    id: `tx_entry_${recordId}`,
-                    itemId: row.sku,
-                    siteId: site.id,
-                    quantity: qtyForSite,
-                    date: daysAgo(100),
-                    type: 'ENTRY'
+                    quantity: isWarehouse ? 500 : Math.floor(baseQty * 0.2),
+                    date: daysAgo(d * 15),
+                    type: typeRand > 0.4 ? 'CONSUMPTION' : 'ENTRY'
                 });
             }
-        }
+
+            // Project Progress
+            if (!isWarehouse && itemIdx % 2 === 0) {
+                PROGRESS_MOCK.push({
+                    id: `prog-${item.id}-${site.id}`,
+                    siteId: site.id,
+                    itemId: item.id,
+                    quantityInstalled: Math.floor(baseQty * 1.2),
+                    lastReportDate: daysAgo(2)
+                });
+            }
+        });
     });
-})();
+
+    // 3. POPULATE MOVEMENTS (Solicitudes / Aprobaciones)
+    const requesterIds = ['u1', 'u3', 'u4'];
+    
+    // Batch 1: Pending (For Approvals Tab)
+    const batch1Id = 'BATCH-DEMO-001';
+    for (let i = 0; i < 4; i++) {
+        MOVEMENTS_MOCK.push({
+            id: `mov-p-${i}`,
+            batchId: batch1Id,
+            itemId: ITEMS[i].id,
+            fromSiteId: SITES[0].id,
+            toSiteId: SITES[2].id,
+            quantity: 100 + (i * 10),
+            requestDate: daysAgo(1),
+            requesterId: 'u3',
+            status: 'PENDING'
+        });
+    }
+
+    // Batch 2: Approved (Historical)
+    const batch2Id = 'BATCH-DEMO-002';
+    for (let i = 5; i < 8; i++) {
+        MOVEMENTS_MOCK.push({
+            id: `mov-a-${i}`,
+            batchId: batch2Id,
+            itemId: ITEMS[i].id,
+            fromSiteId: SITES[1].id,
+            toSiteId: SITES[3].id,
+            quantity: 50,
+            requestDate: daysAgo(10),
+            requesterId: 'u4',
+            status: 'APPROVED',
+            approvalDate: daysAgo(9)
+        });
+    }
+
+    // Batch 3: Rejected
+    MOVEMENTS_MOCK.push({
+        id: `mov-r-1`,
+        batchId: 'BATCH-DEMO-003',
+        itemId: ITEMS[10].id,
+        fromSiteId: SITES[0].id,
+        toSiteId: SITES[4].id,
+        quantity: 1000,
+        requestDate: daysAgo(5),
+        requesterId: 'u3',
+        status: 'REJECTED',
+        approvalDate: daysAgo(4),
+        rejectionReason: 'Cantidad excede el stock disponible en bodega origen.'
+    });
+};
+
+// Execute population
+populateDemo();
 
 export const setGlobalReferenceData = (sites: Site[], items: Item[]) => {
     if(sites.length > 0) SITES = sites;
@@ -350,6 +343,6 @@ export const mockApiService = {
 const USERS_MOCK: User[] = [
     { id: 'u1', username: 'admin', name: 'Carlos Admin', role: UserRole.ADMIN },
     { id: 'u2', username: 'director', name: 'Ana Directora', role: UserRole.DIRECTOR },
-    { id: 'u3', username: 'obra', name: 'Juan Residente', role: UserRole.SITE_MANAGER, assignedSiteId: SITES[0].id },
+    { id: 'u3', username: 'obra', name: 'Juan Residente', role: UserRole.SITE_MANAGER, assignedSiteId: SITES[2].id },
     { id: 'u4', username: 'compras', name: 'Maria Compras', role: UserRole.PURCHASING }
 ];
