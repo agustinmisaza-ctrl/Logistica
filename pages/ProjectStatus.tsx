@@ -38,12 +38,15 @@ export const ProjectStatus: React.FC<ProjectStatusProps> = ({ inventory, transac
       const progressRecord = progress.find(p => p.siteId === selectedSiteId && p.itemId === item.id);
       
       const totalEntries = transactions
-        .filter(t => t.siteId === selectedSiteId && t.itemId === item.id && t.type === 'ENTRY')
+        .filter(t => t.siteId === selectedSiteId && t.itemId === item.id && (t.type === 'ENTRY' || t.type === 'TRANSFER_IN'))
         .reduce((sum, t) => sum + t.quantity, 0);
 
       const stock = invRecord?.quantity || 0;
       const installed = progressRecord?.quantityInstalled || 0;
-      const wastageValue = totalEntries > 0 ? ((totalEntries - (stock + installed)) / totalEntries) * 100 : 0;
+      
+      // Conciliación: Entrada - (Stock + Instalado) = Pérdida/Desperdicio
+      const missingQty = totalEntries - (stock + installed);
+      const wastageValue = totalEntries > 0 ? (missingQty / totalEntries) * 100 : 0;
 
       return {
         id: item.id,
@@ -53,11 +56,30 @@ export const ProjectStatus: React.FC<ProjectStatusProps> = ({ inventory, transac
         totalEntries,
         stock,
         installed,
+        missingQty: Math.max(0, missingQty),
         wastage: Math.max(0, wastageValue).toFixed(1),
         cost: item.cost
       };
     }).filter(d => d.totalEntries > 0 || d.stock > 0 || d.installed > 0);
   }, [selectedSiteId, inventory, progress, transactions]);
+
+  const financialSummary = useMemo(() => {
+      const stockVal = siteData.reduce((a, b) => a + (b.stock * b.cost), 0);
+      const installedVal = siteData.reduce((a, b) => a + (b.installed * b.cost), 0);
+      const totalLossVal = siteData.reduce((a, b) => a + (b.missingQty * b.cost), 0);
+      
+      const avgWastage = siteData.length > 0 
+        ? siteData.reduce((a, b) => a + parseFloat(b.wastage), 0) / siteData.length 
+        : 0;
+      return { stockVal, installedVal, totalLossVal, avgWastage };
+  }, [siteData]);
+
+  const getWastageColor = (wastage: string) => {
+      const val = parseFloat(wastage);
+      if (val > 8) return 'text-red-600 bg-red-50 border-red-100';
+      if (val > 3) return 'text-orange-600 bg-orange-50 border-orange-100';
+      return 'text-emerald-600 bg-emerald-50 border-emerald-100';
+  };
 
   const handleProcessCorte = async () => {
       if (!rawCorteText.trim()) return;
@@ -72,15 +94,6 @@ export const ProjectStatus: React.FC<ProjectStatusProps> = ({ inventory, transac
           setIsParsing(false);
       }
   };
-
-  const financialSummary = useMemo(() => {
-      const stockVal = siteData.reduce((a, b) => a + (b.stock * b.cost), 0);
-      const installedVal = siteData.reduce((a, b) => a + (b.installed * b.cost), 0);
-      const avgWastage = siteData.length > 0 
-        ? siteData.reduce((a, b) => a + parseFloat(b.wastage), 0) / siteData.length 
-        : 0;
-      return { stockVal, installedVal, avgWastage };
-  }, [siteData]);
 
   return (
     <div className="space-y-6 animate-fade-in pb-20">
@@ -98,20 +111,25 @@ export const ProjectStatus: React.FC<ProjectStatusProps> = ({ inventory, transac
         </div>
       </div>
 
-      {/* 2. TOP KPIs - MOVED FROM SIDEBAR */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* 2. TOP KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Capital en Bodega (Obra)</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Capital en Bodega</p>
               <h3 className="text-2xl font-black text-slate-800">${financialSummary.stockVal.toLocaleString()}</h3>
-              <p className="text-[10px] text-sky-600 font-bold mt-1">Material disponible para instalar</p>
+              <p className="text-[10px] text-sky-600 font-bold mt-1">Material disponible</p>
           </div>
           <div className="bg-slate-900 p-6 rounded-3xl shadow-sm text-white">
               <p className="text-sky-400 text-[10px] font-black uppercase tracking-widest mb-1">Inversión Instalada</p>
               <h3 className="text-2xl font-black text-white">${financialSummary.installedVal.toLocaleString()}</h3>
-              <p className="text-[10px] text-slate-400 font-bold mt-1">Valor reconocido en actas de obra</p>
+              <p className="text-[10px] text-slate-400 font-bold mt-1">Valor en actas de obra</p>
+          </div>
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm border-l-4 border-l-red-500">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Pérdida por Desperdicio</p>
+              <h3 className="text-2xl font-black text-red-600">${financialSummary.totalLossVal.toLocaleString()}</h3>
+              <p className="text-[10px] text-slate-400 font-bold mt-1">Costo de material no conciliado</p>
           </div>
           <div className={`p-6 rounded-3xl border shadow-sm ${financialSummary.avgWastage > 5 ? 'bg-red-50 border-red-100' : 'bg-white border-slate-200'}`}>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Desperdicio Promedio</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Índice de Merma</p>
               <h3 className={`text-2xl font-black ${financialSummary.avgWastage > 5 ? 'text-red-600' : 'text-slate-800'}`}>
                   {financialSummary.avgWastage.toFixed(1)}%
               </h3>
@@ -138,17 +156,18 @@ export const ProjectStatus: React.FC<ProjectStatusProps> = ({ inventory, transac
           </div>
       </div>
 
-      {/* 3. MAIN TABLE - FULL WIDTH */}
+      {/* 3. MAIN TABLE */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-400">
                     <tr>
                         <th className="px-6 py-5">Material / SKU</th>
-                        <th className="px-6 py-5 text-right">Recibido</th>
-                        <th className="px-6 py-5 text-right">En Stock</th>
-                        <th className="px-6 py-5 text-right">Instalado</th>
-                        <th className="px-6 py-5 text-center">Desperdicio*</th>
+                        <th className="px-6 py-5 text-right">Ingreso Obra</th>
+                        <th className="px-6 py-5 text-right">Bodega Obra</th>
+                        <th className="px-6 py-5 text-right">Ya Instalado</th>
+                        <th className="px-6 py-5 text-right text-red-500">Merma (Und)</th>
+                        <th className="px-6 py-5 text-center">Eficiencia (%)</th>
                         <th className="px-6 py-5 text-right">Valor Stock</th>
                     </tr>
                 </thead>
@@ -159,13 +178,12 @@ export const ProjectStatus: React.FC<ProjectStatusProps> = ({ inventory, transac
                                 <div className="font-black text-slate-800">{d.name}</div>
                                 <div className="text-[10px] text-slate-400 font-mono">{d.sku}</div>
                             </td>
-                            <td className="px-6 py-4 text-right font-bold text-slate-600">{d.totalEntries} {d.unit}</td>
+                            <td className="px-6 py-4 text-right font-bold text-slate-400">{d.totalEntries} <span className="text-[9px] uppercase">{d.unit}</span></td>
                             <td className="px-6 py-4 text-right font-black text-sky-600">{d.stock}</td>
-                            <td className="px-6 py-4 text-right font-black text-emerald-600">{d.installed}</td>
+                            <td className="px-6 py-4 text-right font-black text-slate-700">{d.installed}</td>
+                            <td className="px-6 py-4 text-right font-black text-red-500">{d.missingQty}</td>
                             <td className="px-6 py-4 text-center">
-                                <span className={`px-2 py-1 rounded-full text-[10px] font-black border ${
-                                    parseFloat(d.wastage) > 8 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-slate-50 text-slate-500 border-slate-200'
-                                }`}>
+                                <span className={`px-2 py-1 rounded-full text-[10px] font-black border uppercase ${getWastageColor(d.wastage)}`}>
                                     {d.wastage}%
                                 </span>
                             </td>
@@ -179,7 +197,17 @@ export const ProjectStatus: React.FC<ProjectStatusProps> = ({ inventory, transac
         </div>
       </div>
 
-      {/* MODAL CORTE DE OBRA */}
+      <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100 flex items-start gap-4">
+          <div className="text-2xl">📈</div>
+          <div>
+              <h4 className="font-black text-blue-900 text-sm mb-1">Metodología de Conciliación</h4>
+              <p className="text-xs text-blue-700 leading-relaxed">
+                  El sistema calcula el desperdicio comparando los ingresos totales a la obra (Remisiones) contra la suma del inventario físico reportado en bodega y las cantidades certificadas en el último corte de obra. Una merma superior al 8% en cables requiere auditoría de cortes y retazos.
+              </p>
+          </div>
+      </div>
+
+      {/* MODAL CORTE DE OBRA (Unchanged but kept for context) */}
       {showCorteModal && (
           <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
               <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-fade-in-up">

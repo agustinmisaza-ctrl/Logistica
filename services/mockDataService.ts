@@ -4,7 +4,6 @@ import { InventoryRecord, Item, MovementRequest, ProjectProgress, Site, SiteType
 // --- CONSTANTS & DICTIONARIES FOR GENERATION ---
 const CITIES = ['Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena', 'Pereira', 'Zipaquirá'];
 
-// Proyectos Reales
 const SITE_NAMES = [
   { name: 'ALMACEN STOCK MEDELLIN', type: SiteType.BODEGA_CENTRAL, budget: 0 },
   { name: 'ALMACEN STOCK BOGOTA', type: SiteType.BODEGA_CENTRAL, budget: 0 },
@@ -21,7 +20,6 @@ const SITE_NAMES = [
   { name: 'SFV ALKOSTO MOSQUERA MOS', type: SiteType.SOLAR, budget: 2500000000 }
 ];
 
-// --- REAL DATA FROM CSV ---
 const REAL_INVENTORY_SOURCE = [
   { sku: "HJ000099", name: "CABLE 12 AWG FUERZA LSHF TC 600V 90C VERDE", qty: 29365, val: 58888041 },
   { sku: "005644", name: "TUERCA 3/8\"", qty: 22698, val: 1992928 },
@@ -53,12 +51,6 @@ const REAL_INVENTORY_SOURCE = [
   { sku: "009393", name: "CABLE 500 kCMIL FUERZA LSHF TC 600V 90C NEGRO", qty: 80, val: 12334846 },
   { sku: "004640", name: "TABLERO 3F 12 CTOS ESPACIO PARA TOTALIZADOR SCHNEIDER", qty: 61, val: 16559359 },
   { sku: "63915", name: "LUMINARIA LED TIPO HERMÉTICA 36W EMERGENCIA", qty: 164, val: 61664000 },
-  { sku: "49079", name: "TRAMO RECTO BLINDOBARRA 1250 AMP 3P4W+50%E", qty: 157, val: 183718260 },
-  { sku: "HJ000102", name: "CABLE 12 AWG FUERZA LSHF TC 600V 90C ROJO", qty: 15149, val: 32295177 },
-  { sku: "HJ000103", name: "CABLE 12 AWG FUERZA LSHF TC 600V 90C BLANCO", qty: 13504, val: 28838253 },
-  { sku: "HJ000101", name: "CABLE 12 AWG FUERZA LSHF TC 600V 90C AZUL", qty: 13978, val: 29946809 },
-  { sku: "HJ000100", name: "CABLE 12 AWG FUERZA LSHF TC 600V 90C AMARILLO", qty: 11676, val: 25066975 },
-  { sku: "009389", name: "CABLE 4/0 AWG FUERZA LSHF TC 600V 90C NEGRO", qty: 500, val: 31694000 },
   { sku: "47078", name: "TRANSFORMADOR PARA 800KVA BT-BT", qty: 2, val: 110424800 },
   { sku: "017197", name: "INVERSOR HUAWEI SUN2000 80K-MGL0 220V", qty: 2, val: 37539600 },
   { sku: "47212", name: "T-DISTRIBUCIÓN ALUMBRADO – TOMAS - DATACENTER C4 DU", qty: 1, val: 62750000 },
@@ -86,7 +78,15 @@ const REAL_INVENTORY_SOURCE = [
   { sku: "003841", name: "PERFIL RANURADO 4X4 X 3MTS GALVANIZADO", qty: 120, val: 5200698 }
 ];
 
-// --- GENERATORS ---
+const determineCategory = (name: string): Item['category'] => {
+    const n = name.toUpperCase();
+    if (n.includes('CABLE') || n.includes('ALAMBRE') || n.includes('CONDUCTOR') || n.includes('CORDON')) return 'CABLES';
+    if (n.includes('TUBO') || n.includes('CURVA') || n.includes('UNION') || n.includes('ADAPTADOR') || n.includes('CANALETA') || n.includes('DUCTO') || n.includes('BANDEJA') || n.includes('CODO') || n.includes('CONDULETE')) return 'TUBERIA';
+    if (n.includes('BREAKER') || n.includes('TABLERO') || n.includes('TOTALIZADOR') || n.includes('TOMA') || n.includes('INTERR') || n.includes('DPS') || n.includes('TRANSFORMADOR') || n.includes('CELDA') || n.includes('GABINETE')) return 'PROTECCION';
+    if (n.includes('LUMINARIA') || n.includes('REFLECTOR') || n.includes('BALA') || n.includes('BOMBILLO') || n.includes('LED') || n.includes('PANEL')) return 'ILUMINACION';
+    if (n.includes('BROCA') || n.includes('SIERRA') || n.includes('ALICATE') || n.includes('DESTORNILLADOR') || n.includes('HERRAMIENTA') || n.includes('TALADRO') || n.includes('MULTIMETRO') || n.includes('PINZA') || n.includes('PONCHADORA') || n.includes('MOLDE')) return 'HERRAMIENTA';
+    return 'ACCESORIOS';
+};
 
 const generateSites = (): Site[] => {
   return SITE_NAMES.map((s, index) => ({
@@ -98,22 +98,9 @@ const generateSites = (): Site[] => {
   }));
 };
 
-const determineCategory = (name: string): Item['category'] => {
-    const n = name.toUpperCase();
-    if (n.includes('CABLE') || n.includes('ALAMBRE') || n.includes('CONDUCTOR') || n.includes('CORDON')) return 'CABLES';
-    if (n.includes('TUBO') || n.includes('CURVA') || n.includes('UNION') || n.includes('ADAPTADOR') || n.includes('CANALETA') || n.includes('DUCTO') || n.includes('BANDEJA') || n.includes('CODO') || n.includes('CONDULETE')) return 'TUBERIA';
-    if (n.includes('BREAKER') || n.includes('TABLERO') || n.includes('TOTALIZADOR') || n.includes('TOMA') || n.includes('INTERR') || n.includes('DPS') || n.includes('TRANSFORMADOR') || n.includes('CELDA') || n.includes('GABINETE')) return 'PROTECCION';
-    if (n.includes('LUMINARIA') || n.includes('REFLECTOR') || n.includes('BALA') || n.includes('BOMBILLO') || n.includes('LED') || n.includes('PANEL')) return 'ILUMINACION';
-    if (n.includes('BROCA') || n.includes('SIERRA') || n.includes('ALICATE') || n.includes('DESTORNILLADOR') || n.includes('HERRAMIENTA') || n.includes('TALADRO') || n.includes('MULTIMETRO') || n.includes('PINZA') || n.includes('PONCHADORA') || n.includes('MOLDE')) return 'HERRAMIENTA';
-    
-    return 'ACCESORIOS';
-};
-
 const generateItemsFromRealData = (): Item[] => {
   return REAL_INVENTORY_SOURCE.map(row => {
-      const estimatedCost = row.qty > 0 ? row.val / row.qty : row.val; // Handle case where qty might be 0 but val exists in source
-      
-      // Fake history for graphs
+      const estimatedCost = row.qty > 0 ? row.val / row.qty : row.val;
       const history: PricePoint[] = [];
       for (let m = 5; m >= 0; m--) {
           const date = new Date();
@@ -124,9 +111,8 @@ const generateItemsFromRealData = (): Item[] => {
               price: Math.round(estimatedCost * fluctuation)
           });
       }
-
       return {
-          id: row.sku, // Use SKU as ID for simplicity in mapping
+          id: row.sku,
           sku: row.sku,
           name: row.name,
           category: determineCategory(row.name),
@@ -138,7 +124,6 @@ const generateItemsFromRealData = (): Item[] => {
   });
 };
 
-// --- GLOBAL STORAGE ---
 export let SITES: Site[] = generateSites();
 export let ITEMS: Item[] = generateItemsFromRealData();
 
@@ -154,136 +139,74 @@ const daysAgo = (days: number) => {
     return d.toISOString();
 };
 
-// --- DISTRIBUTE REAL INVENTORY ---
 (() => {
-    console.log("Distributing Real Inventory across Sites...");
-
     REAL_INVENTORY_SOURCE.forEach((row, idx) => {
         let remainingQty = row.qty;
-        
-        // Skip items with 0 or negative quantity
         if (remainingQty <= 0) return;
-
-        // Distribute to 1-4 random sites to simulate real spread
+        const cat = determineCategory(row.name);
         const numberOfSites = Math.floor(Math.random() * 4) + 1; 
         
         for (let i = 0; i < numberOfSites; i++) {
             if (remainingQty <= 0) break;
-
             const site = SITES[Math.floor(Math.random() * SITES.length)];
-            
-            // If it's the last iteration or quantity is small, dump the rest
             let qtyForSite = (i === numberOfSites - 1) ? remainingQty : Math.floor(remainingQty * (0.2 + Math.random() * 0.3));
             if (qtyForSite > remainingQty) qtyForSite = remainingQty;
             if (qtyForSite === 0) continue;
-
             remainingQty -= qtyForSite;
 
             const recordId = `inv-${row.sku}-${site.id}`;
-            
-            // Check if record already exists for this site/item combo (random collision)
-            const existingRecord = INVENTORY_MOCK.find(r => r.itemId === row.sku && r.siteId === site.id);
-            if (existingRecord) {
-                existingRecord.quantity += qtyForSite;
-            } else {
-                INVENTORY_MOCK.push({
-                    id: recordId,
+            let idleDays = cat === 'CABLES' ? Math.floor(Math.random() * 10) : (cat === 'PROTECCION' ? Math.floor(Math.random() * 100) + 20 : Math.floor(Math.random() * 45));
+
+            INVENTORY_MOCK.push({
+                id: recordId,
+                itemId: row.sku,
+                siteId: site.id,
+                quantity: qtyForSite,
+                lastMovedDate: daysAgo(idleDays)
+            });
+
+            // GESTIÓN DE DESPERDICIO REALISTA:
+            // Para obras (no bodegas centrales), creamos ingresos y reportes de progreso
+            if (site.type !== SiteType.BODEGA_CENTRAL) {
+                const wastageFactor = cat === 'CABLES' ? 0.08 : (cat === 'TUBERIA' ? 0.05 : 0.02);
+                const randomWastage = wastageFactor * (Math.random() * 1.5); // Variabilidad
+                
+                // Si stock actual es 100 y desperdicio es 10%
+                // Las entradas totales deben ser stock + instalados + perdidos
+                const installedQty = Math.floor(qtyForSite * 1.5); 
+                const lostQty = Math.floor((qtyForSite + installedQty) * randomWastage);
+                const totalEntries = qtyForSite + installedQty + lostQty;
+
+                TRANSACTIONS_MOCK.push({
+                    id: `tx_entry_${recordId}`,
                     itemId: row.sku,
                     siteId: site.id,
-                    quantity: qtyForSite,
-                    lastMovedDate: daysAgo(Math.floor(Math.random() * 60))
+                    quantity: totalEntries,
+                    date: daysAgo(Math.floor(Math.random() * 60) + 10),
+                    type: 'ENTRY'
                 });
-            }
 
-            // Generate synthetic Progress if it's a project site
-            if (site.type !== SiteType.BODEGA_CENTRAL) {
-                const installedRatio = Math.random() * 0.7; 
                 PROGRESS_MOCK.push({
                     id: `prog-${recordId}`,
                     siteId: site.id,
                     itemId: row.sku,
-                    quantityInstalled: Math.floor(qtyForSite * installedRatio),
+                    quantityInstalled: installedQty,
                     lastReportDate: daysAgo(2)
+                });
+            } else {
+                // Para bodegas, simplemente igualamos entrada a stock actual
+                TRANSACTIONS_MOCK.push({
+                    id: `tx_entry_${recordId}`,
+                    itemId: row.sku,
+                    siteId: site.id,
+                    quantity: qtyForSite,
+                    date: daysAgo(100),
+                    type: 'ENTRY'
                 });
             }
         }
     });
-
-    // Generate Transactions based on the distributed inventory
-    INVENTORY_MOCK.forEach((inv) => {
-        // Entry Transaction
-        TRANSACTIONS_MOCK.push({
-            id: `tx_entry_${inv.id}`,
-            itemId: inv.itemId,
-            siteId: inv.siteId,
-            quantity: inv.quantity + Math.floor(inv.quantity * 0.1), 
-            date: daysAgo(Math.floor(Math.random() * 120) + 60), 
-            type: 'ENTRY'
-        });
-
-        // Some consumption
-        if (Math.random() > 0.3) { 
-            TRANSACTIONS_MOCK.push({
-                id: `tx_cons_${inv.id}`,
-                itemId: inv.itemId,
-                siteId: inv.siteId,
-                quantity: -Math.floor(inv.quantity * 0.05), 
-                date: daysAgo(Math.floor(Math.random() * 30)), 
-                type: 'CONSUMPTION'
-            });
-        }
-    });
-
-    // Tools generation (Generic brands but distributed)
-    const toolBrands = ['DeWalt', 'Bosch', 'Makita', 'Fluke', 'Hilti', 'Klein Tools'];
-    for(let i=0; i<80; i++) { 
-        const site = SITES[Math.floor(Math.random() * SITES.length)];
-        const brand = toolBrands[Math.floor(Math.random() * toolBrands.length)];
-        const isProblematic = Math.random() < 0.1; 
-
-        TOOLS_MOCK.push({
-            id: `t${i}`,
-            name: `Herramienta ${brand} Tipo ${String.fromCharCode(65 + i%5)}`,
-            serialNumber: `SN-${10000+i}`,
-            brand: brand,
-            siteId: site.id,
-            purchaseDate: daysAgo(Math.floor(Math.random() * 500)),
-            warrantyExpirationDate: daysAgo(Math.floor(Math.random() * 300) - 150), 
-            nextMaintenanceDate: daysAgo(isProblematic ? -5 : 30), 
-            status: isProblematic ? ToolStatus.MANTENIMIENTO : ToolStatus.OPERATIVA,
-            category: i % 2 === 0 ? 'ELECTRICA' : 'HERRAMIENTA' as any
-        });
-    }
-
-    // Recent Movements
-    for(let i=0; i<30; i++) {
-        const fromSite = SITES[Math.floor(Math.random() * SITES.length)];
-        let toSite = SITES[Math.floor(Math.random() * SITES.length)];
-        while(toSite.id === fromSite.id) toSite = SITES[Math.floor(Math.random() * SITES.length)];
-        
-        const item = ITEMS[Math.floor(Math.random() * ITEMS.length)];
-
-        MOVEMENTS_MOCK.push({
-            id: `mov${i}`,
-            itemId: item.id,
-            fromSiteId: fromSite.id,
-            toSiteId: toSite.id,
-            quantity: Math.max(1, Math.floor(Math.random() * 20)),
-            requestDate: daysAgo(Math.floor(Math.random() * 15)),
-            requesterId: 'u3',
-            status: i < 10 ? 'PENDING' : (i < 25 ? 'APPROVED' : 'REJECTED'),
-            approvalDate: i >= 10 ? daysAgo(1) : undefined
-        });
-    }
-
 })();
-
-const USERS_MOCK: User[] = [
-    { id: 'u1', username: 'admin', name: 'Carlos Admin', role: UserRole.ADMIN },
-    { id: 'u2', username: 'director', name: 'Ana Directora', role: UserRole.DIRECTOR },
-    { id: 'u3', username: 'obra', name: 'Juan Residente', role: UserRole.SITE_MANAGER, assignedSiteId: SITES[0].id },
-    { id: 'u4', username: 'compras', name: 'Maria Compras', role: UserRole.PURCHASING }
-];
 
 export const setGlobalReferenceData = (sites: Site[], items: Item[]) => {
     if(sites.length > 0) SITES = sites;
@@ -294,12 +217,9 @@ export const getInventoryWithDetails = (currentInventory: InventoryRecord[]) => 
   return currentInventory.map(inv => {
     const item = ITEMS.find(i => i.id === inv.itemId);
     const site = SITES.find(s => s.id === inv.siteId);
-    
     const lastMoved = new Date(inv.lastMovedDate);
     const now = new Date();
-    const diffTime = Math.abs(now.getTime() - lastMoved.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-
+    const diffDays = Math.ceil(Math.abs(now.getTime() - lastMoved.getTime()) / (1000 * 60 * 60 * 24)); 
     return {
       ...inv,
       itemName: item?.name || `Item ${inv.itemId}`,
@@ -324,10 +244,8 @@ export const getToolsWithDetails = (tools: Tool[]) => {
      const now = new Date();
      const maintDate = new Date(tool.nextMaintenanceDate);
      const warrantyDate = new Date(tool.warrantyExpirationDate);
-     
      const daysToMaintenance = Math.ceil((maintDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)); 
      const daysToWarranty = Math.ceil((warrantyDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
      return {
        ...tool,
        siteName: site?.name || 'Unknown',
@@ -343,14 +261,9 @@ export const mockApiService = {
     login: async (u: string, p: string): Promise<User> => {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
-                const usernameInput = u.toLowerCase().trim();
-                const foundUser = USERS_MOCK.find(user => user.username.toLowerCase() === usernameInput);
-                
-                if (foundUser) {
-                    resolve(foundUser);
-                } else {
-                    reject(new Error("Usuario no encontrado"));
-                }
+                const foundUser = USERS_MOCK.find(user => user.username.toLowerCase() === u.toLowerCase().trim());
+                if (foundUser) resolve(foundUser);
+                else reject(new Error("Usuario no encontrado"));
             }, 800);
         });
     },
@@ -360,7 +273,6 @@ export const mockApiService = {
     getMovements: async () => MOVEMENTS_MOCK,
     getTransactions: async () => TRANSACTIONS_MOCK,
     getProgress: async () => PROGRESS_MOCK,
-    
     getUsers: async (): Promise<User[]> => {
         return new Promise(resolve => setTimeout(() => resolve([...USERS_MOCK]), 500));
     },
@@ -380,3 +292,10 @@ export const mockApiService = {
         });
     }
 };
+
+const USERS_MOCK: User[] = [
+    { id: 'u1', username: 'admin', name: 'Carlos Admin', role: UserRole.ADMIN },
+    { id: 'u2', username: 'director', name: 'Ana Directora', role: UserRole.DIRECTOR },
+    { id: 'u3', username: 'obra', name: 'Juan Residente', role: UserRole.SITE_MANAGER, assignedSiteId: SITES[0].id },
+    { id: 'u4', username: 'compras', name: 'Maria Compras', role: UserRole.PURCHASING }
+];
