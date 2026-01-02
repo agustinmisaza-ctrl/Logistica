@@ -1,10 +1,22 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Robust initialization with fallback to avoid crashes if API_KEY is missing initially
+const getAIClient = () => {
+  const apiKey = process.env.API_KEY || "";
+  try {
+    return new GoogleGenAI({ apiKey });
+  } catch (e) {
+    console.error("Gemini SDK Init Error:", e);
+    return null;
+  }
+};
+
+const ai = getAIClient();
 
 // AI-powered semantic search for materials
 export const semanticSearchItems = async (query: string, itemsContext: string): Promise<string[]> => {
+  if (!ai) return [];
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -48,6 +60,7 @@ export const semanticSearchItems = async (query: string, itemsContext: string): 
 
 // Benchmarking KPIs against Industry Standards
 export const getKPIBenchmarks = async (currentMetrics: any): Promise<any> => {
+  if (!ai) return null;
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -101,8 +114,8 @@ export const getKPIBenchmarks = async (currentMetrics: any): Promise<any> => {
   }
 };
 
-// ... (keep existing functions parseCorteDeObra, analyzeInventory, chatWithInventory)
 export const parseCorteDeObra = async (rawText: string, catalogContext: string): Promise<any> => {
+  if (!ai) throw new Error("AI not initialized");
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -156,6 +169,7 @@ export const analyzeInventory = async (
   inventorySummary: string, 
   stagnantItems: string
 ): Promise<any> => {
+  if (!ai) return null;
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -212,6 +226,7 @@ export const chatWithInventory = async (
   message: string, 
   contextData: string
 ) => {
+  if (!ai) return "AI no disponible.";
   try {
     const systemInstruction = `
       Eres "MejiaBot", un asistente experto en logística para PC Mejia.
