@@ -5,6 +5,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PC Mejia Inventory</title>
+    <!-- Shim for process.env used by the Gemini SDK -->
+    <script>
+      window.process = { env: { API_KEY: "" } };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -25,6 +29,7 @@
       }
     </script>
     <style>
+      #root { min-height: 100vh; }
       @media print {
         .no-print, 
         button, 
@@ -80,5 +85,7 @@
 </head>
   <body class="bg-slate-50 text-slate-800 antialiased">
     <div id="root"></div>
+    <!-- Entry point module -->
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
