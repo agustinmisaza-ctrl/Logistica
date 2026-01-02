@@ -139,7 +139,65 @@ const daysAgo = (days: number) => {
     return d.toISOString();
 };
 
+const daysForward = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return d.toISOString();
+};
+
+// --- POPULATE TOOLS DATA ---
+const populateTools = () => {
+  const toolTemplates = [
+    { name: 'Taladro Percutor 1/2"', brand: 'Bosch', category: 'ELECTRICA' as const },
+    { name: 'Amoladora Angular 4-1/2"', brand: 'Makita', category: 'ELECTRICA' as const },
+    { name: 'Multímetro Digital True RMS', brand: 'Fluke', category: 'MEDICION' as const },
+    { name: 'Pinza Voltamperimétrica', brand: 'Fluke', category: 'MEDICION' as const },
+    { name: 'Martillo Demoledor 15Kg', brand: 'Hilti', category: 'ELECTRICA' as const },
+    { name: 'Nivel Láser Autonivelante', brand: 'Dewalt', category: 'MEDICION' as const },
+    { name: 'Rotomartillo SDS Plus', brand: 'Milwaukee', category: 'ELECTRICA' as const },
+    { name: 'Sierra Circular 7-1/4"', brand: 'Bosch', category: 'ELECTRICA' as const },
+    { name: 'Doblador de Tubo EMT 3/4"', brand: 'Greenlee', category: 'MANUAL' as const },
+    { name: 'Juego de Destornilladores Dieléctricos', brand: 'Klein Tools', category: 'MANUAL' as const },
+    { name: 'Pistola de Calor Industrial', brand: 'Steinel', category: 'ELECTRICA' as const },
+    { name: 'Analizador de Redes Trifásico', brand: 'Fluke', category: 'MEDICION' as const },
+    { name: 'Arnés de Seguridad 4 Puntos', brand: 'MSA', category: 'SEGURIDAD' as const },
+    { name: 'Escalera de Tijera Dieléctrica 8ft', brand: 'Werner', category: 'SEGURIDAD' as const },
+    { name: 'Ponchadora Hidráulica 12 Ton', brand: 'Burndy', category: 'ELECTRICA' as const }
+  ];
+
+  for (let i = 0; i < 45; i++) {
+    const template = toolTemplates[i % toolTemplates.length];
+    const site = SITES[Math.floor(Math.random() * SITES.length)];
+    const statusRand = Math.random();
+    
+    let status: ToolStatus = ToolStatus.OPERATIVA;
+    if (statusRand > 0.85) status = ToolStatus.MANTENIMIENTO;
+    else if (statusRand > 0.95) status = ToolStatus.REPARACION;
+
+    // Lógica para alertas de mantenimiento (vencidos, pronto, lejos)
+    let nextMaintDays = 0;
+    if (i % 5 === 0) nextMaintDays = -Math.floor(Math.random() * 15 + 1); // Vencido
+    else if (i % 7 === 0) nextMaintDays = Math.floor(Math.random() * 6); // Pronto (0-5 días)
+    else nextMaintDays = Math.floor(Math.random() * 90 + 10); // Lejos
+
+    TOOLS_MOCK.push({
+      id: `tool-${i + 1}`,
+      name: `${template.name} #${i + 101}`,
+      serialNumber: `SN-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+      brand: template.brand,
+      siteId: site.id,
+      purchaseDate: daysAgo(Math.floor(Math.random() * 500 + 100)),
+      warrantyExpirationDate: daysForward(Math.floor(Math.random() * 300 - 50)),
+      nextMaintenanceDate: daysForward(nextMaintDays),
+      status: status,
+      category: template.category
+    });
+  }
+};
+
 (() => {
+    populateTools();
+
     REAL_INVENTORY_SOURCE.forEach((row, idx) => {
         let remainingQty = row.qty;
         if (remainingQty <= 0) return;
@@ -166,13 +224,10 @@ const daysAgo = (days: number) => {
             });
 
             // GESTIÓN DE DESPERDICIO REALISTA:
-            // Para obras (no bodegas centrales), creamos ingresos y reportes de progreso
             if (site.type !== SiteType.BODEGA_CENTRAL) {
                 const wastageFactor = cat === 'CABLES' ? 0.08 : (cat === 'TUBERIA' ? 0.05 : 0.02);
-                const randomWastage = wastageFactor * (Math.random() * 1.5); // Variabilidad
+                const randomWastage = wastageFactor * (Math.random() * 1.5); 
                 
-                // Si stock actual es 100 y desperdicio es 10%
-                // Las entradas totales deben ser stock + instalados + perdidos
                 const installedQty = Math.floor(qtyForSite * 1.5); 
                 const lostQty = Math.floor((qtyForSite + installedQty) * randomWastage);
                 const totalEntries = qtyForSite + installedQty + lostQty;
@@ -194,7 +249,6 @@ const daysAgo = (days: number) => {
                     lastReportDate: daysAgo(2)
                 });
             } else {
-                // Para bodegas, simplemente igualamos entrada a stock actual
                 TRANSACTIONS_MOCK.push({
                     id: `tx_entry_${recordId}`,
                     itemId: row.sku,
