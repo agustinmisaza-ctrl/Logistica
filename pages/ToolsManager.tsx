@@ -53,16 +53,22 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
         value: statusCounts[key]
     }));
 
-    // Site Distribution
+    // Site Distribution (Using ID as key for accurate drillthrough)
     const siteCounts = processedTools.reduce((acc: any, tool) => {
-        acc[tool.siteName] = (acc[tool.siteName] || 0) + 1;
+        acc[tool.siteId] = (acc[tool.siteId] || 0) + 1;
         return acc;
     }, {});
 
-    const siteChartData = Object.keys(siteCounts).map(key => ({
-        name: key.length > 15 ? key.substring(0, 15) + '...' : key,
-        tools: siteCounts[key]
-    })).sort((a, b) => b.tools - a.tools).slice(0, 8);
+    const siteChartData = Object.keys(siteCounts).map(siteId => {
+        const site = SITES.find(s => s.id === siteId);
+        const name = site?.name || 'Unknown';
+        return {
+            id: siteId,
+            name: name.length > 15 ? name.substring(0, 15) + '...' : name,
+            fullName: name,
+            tools: siteCounts[siteId]
+        };
+    }).sort((a, b) => b.tools - a.tools).slice(0, 8);
 
     const healthIndex = total > 0 ? (operative / total) * 100 : 0;
 
@@ -70,6 +76,23 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
   }, [processedTools]);
 
   const COLORS = ['#0ea5e9', '#f59e0b', '#ef4444', '#64748b'];
+
+  // --- Drillthrough Handlers ---
+  const handleStatusClick = (data: any) => {
+    if (data && data.name) {
+        setFilterStatus(data.name);
+        setFilterSite('ALL');
+        setViewMode('list');
+    }
+  };
+
+  const handleSiteClick = (data: any) => {
+    if (data && data.id) {
+        setFilterSite(data.id);
+        setFilterStatus('ALL');
+        setViewMode('list');
+    }
+  };
 
   // --- Filtering logic for List View ---
   const filteredTools = processedTools.filter(t => {
@@ -137,8 +160,11 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Status Distribution (Pie) */}
                   <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-200 flex flex-col items-center">
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 w-full">Distribución de Estado</h4>
-                      <div className="h-64 w-full">
+                      <div className="flex justify-between items-center w-full mb-6">
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Distribución de Estado</h4>
+                        <span className="text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-full">INTERACTIVO</span>
+                      </div>
+                      <div className="h-64 w-full cursor-pointer">
                           <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
                                   <Pie
@@ -150,9 +176,10 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                                       paddingAngle={5}
                                       dataKey="value"
                                       stroke="none"
+                                      onClick={handleStatusClick}
                                   >
                                       {statsData.statusChartData.map((entry, index) => (
-                                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="hover:opacity-80 transition-opacity" />
                                       ))}
                                   </Pie>
                                   <Tooltip 
@@ -162,22 +189,27 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                               </PieChart>
                           </ResponsiveContainer>
                       </div>
+                      <p className="text-[9px] text-slate-400 mt-4 font-bold italic">Haga clic en un segmento para filtrar la tabla</p>
                   </div>
 
                   {/* Site Distribution (Bar) */}
                   <div className="lg:col-span-2 bg-white p-8 rounded-[40px] shadow-sm border border-slate-200">
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">Herramientas por Proyecto</h4>
-                      <div className="h-64">
+                      <div className="flex justify-between items-center w-full mb-6">
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Herramientas por Proyecto</h4>
+                        <span className="text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-full">CLICK PARA DRILLTHROUGH</span>
+                      </div>
+                      <div className="h-64 cursor-pointer">
                           <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={statsData.siteChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                              <BarChart data={statsData.siteChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }} onClick={handleSiteClick}>
                                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} />
                                   <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700, fill: '#64748b'}} />
                                   <Tooltip 
                                     cursor={{fill: '#f8fafc'}}
                                     contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
+                                    formatter={(val) => [`${val} Equipos`, 'Stock']}
                                   />
-                                  <Bar dataKey="tools" fill="#0ea5e9" radius={[10, 10, 0, 0]} barSize={32} />
+                                  <Bar dataKey="tools" fill="#0ea5e9" radius={[10, 10, 0, 0]} barSize={32} className="hover:opacity-80 transition-opacity" />
                               </BarChart>
                           </ResponsiveContainer>
                       </div>
@@ -209,7 +241,7 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                                 .sort((a, b) => a.daysToMaintenance - b.daysToMaintenance)
                                 .slice(0, 6)
                                 .map(tool => (
-                                    <tr key={tool.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <tr key={tool.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => { setFilterSite(tool.siteId); setViewMode('list'); setSearchTerm(tool.serialNumber); }}>
                                         <td className="px-8 py-4">
                                             <div className="font-bold text-slate-800">{tool.name}</div>
                                             <div className="text-[10px] text-slate-400 font-mono">{tool.brand} • {tool.serialNumber}</div>
@@ -229,7 +261,7 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                                         </td>
                                         <td className="px-8 py-4 text-right">
                                             <button 
-                                                onClick={() => onUpdateStatus(tool.id, ToolStatus.MANTENIMIENTO)}
+                                                onClick={(e) => { e.stopPropagation(); onUpdateStatus(tool.id, ToolStatus.MANTENIMIENTO); }}
                                                 className="text-sky-600 font-black text-xs hover:underline"
                                             >
                                                 Gestionar
@@ -246,7 +278,7 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
       ) : (
           <div className="space-y-6">
               {/* Filters */}
-              <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center">
+              <div className="bg-white p-6 rounded-[32px] shadow-sm border border-slate-200 flex flex-wrap gap-4 items-center animate-fade-in-down">
                   <div className="flex-1 min-w-[300px] relative group">
                     <input 
                         type="text" 
@@ -255,6 +287,9 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
+                    {searchTerm && (
+                      <button onClick={() => setSearchTerm('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">✕</button>
+                    )}
                   </div>
                   
                   {!currentUser.assignedSiteId && (
@@ -273,18 +308,27 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
                   >
-                      <option value="ALL">Estados</option>
+                      <option value="ALL">Todos los Estados</option>
                       <option value={ToolStatus.OPERATIVA}>Operativa</option>
                       <option value={ToolStatus.MANTENIMIENTO}>Mantenimiento</option>
                       <option value={ToolStatus.BAJA}>De Baja</option>
                       <option value={ToolStatus.REPARACION}>Reparación</option>
                   </select>
+
+                  {(filterSite !== 'ALL' || filterStatus !== 'ALL' || searchTerm !== '') && (
+                    <button 
+                      onClick={() => { setFilterSite('ALL'); setFilterStatus('ALL'); setSearchTerm(''); }}
+                      className="text-[10px] font-black text-red-500 uppercase hover:underline"
+                    >
+                      Limpiar Filtros
+                    </button>
+                  )}
               </div>
 
               {/* Tools Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredTools.slice(0, 50).map(tool => (
-                    <div key={tool.id} className="bg-white rounded-[32px] shadow-sm border border-slate-200 p-6 hover:shadow-xl hover:border-sky-200 transition-all group flex flex-col justify-between">
+                    <div key={tool.id} className="bg-white rounded-[32px] shadow-sm border border-slate-200 p-6 hover:shadow-xl hover:border-sky-200 transition-all group flex flex-col justify-between animate-fade-in-up">
                         <div>
                             <div className="flex justify-between items-start mb-4">
                                 <span className="text-[9px] font-black text-sky-600 bg-sky-50 px-2.5 py-1 rounded-full uppercase tracking-widest">{tool.category}</span>
@@ -349,7 +393,8 @@ export const ToolsManager: React.FC<ToolsManagerProps> = ({ tools, currentUser, 
               
               {filteredTools.length === 0 && (
                   <div className="text-center py-20 bg-white rounded-[40px] border border-slate-200">
-                      <p className="text-slate-400 font-black uppercase text-xs">No se encontraron herramientas</p>
+                      <p className="text-slate-400 font-black uppercase text-xs">No se encontraron herramientas con los filtros actuales</p>
+                      <button onClick={() => { setFilterSite('ALL'); setFilterStatus('ALL'); setSearchTerm(''); }} className="mt-4 text-sky-600 font-black text-xs uppercase underline">Mostrar todo</button>
                   </div>
               )}
           </div>
