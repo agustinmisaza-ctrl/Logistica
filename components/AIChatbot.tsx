@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { chatWithInventory } from '../services/geminiService';
 import { InventoryRecord } from '../types';
@@ -12,7 +13,7 @@ declare global {
   }
 
   interface Window {
-    readonly aistudio?: AIStudio;
+    aistudio?: AIStudio;
   }
 }
 

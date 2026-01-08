@@ -1,7 +1,8 @@
+
 import { InventoryRecord, MovementRequest, ProjectProgress, Site, Tool, Transaction, User } from "../types";
 
-// URL ajustada al default de uvicorn (127.0.0.1 en vez de localhost para evitar problemas de resolución)
-const API_URL = "http://127.0.0.1:8000"; 
+// URL de producción basada en la documentación proporcionada
+const API_URL = "http://inventario.pcmejia.com/api"; 
 
 // Headers estándar para comunicar con FastAPI
 const HEADERS = {
@@ -28,7 +29,7 @@ async function safeFetch<T>(url: string, options?: RequestInit): Promise<T> {
         if (error instanceof TypeError && error.message === 'Failed to fetch') {
              console.error(`Network Error: Could not connect to ${url}`);
              // We include 'Failed to fetch' in the message so App.tsx can still detect it if needed
-             throw new Error(`No se pudo conectar con el servidor (Failed to fetch). Verifique que el backend esté ejecutándose en ${API_URL}`);
+             throw new Error(`No se pudo conectar con el servidor (Failed to fetch). Verifique la conexión con ${API_URL}`);
         }
         throw error;
     }
