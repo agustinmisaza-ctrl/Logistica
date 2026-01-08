@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { chatWithInventory } from '../services/geminiService';
 import { InventoryRecord } from '../types';
@@ -13,9 +12,7 @@ declare global {
   }
 
   interface Window {
-    // Re-added readonly to ensure all declarations of 'aistudio' have identical modifiers.
-    // This resolves the conflict with internal environment types.
-    readonly aistudio: AIStudio;
+    readonly aistudio?: AIStudio;
   }
 }
 

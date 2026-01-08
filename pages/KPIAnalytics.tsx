@@ -31,6 +31,15 @@ export const KPIAnalytics: React.FC<KPIAnalyticsProps> = ({ inventory, transacti
     const [aiData, setAiData] = useState<any>(null);
     const [aiLoading, setAiLoading] = useState(false);
 
+    // Filter State
+    const [filterSite, setFilterSite] = useState('ALL');
+    const [startDate, setStartDate] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 30); // Default to last 30 days
+        return d.toISOString().split('T')[0];
+    });
+    const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+
     const fontScale = baseFontSize / 16;
     const axisFontSize = 10 * fontScale;
     const tooltipFontSize = 12 * fontScale;
@@ -43,7 +52,13 @@ export const KPIAnalytics: React.FC<KPIAnalyticsProps> = ({ inventory, transacti
         }).format(num);
     };
 
-    const fullInventory = useMemo(() => getInventoryWithDetails(inventory), [inventory]);
+    const fullInventory = useMemo(() => {
+        let data = getInventoryWithDetails(inventory);
+        if (filterSite !== 'ALL') {
+            data = data.filter(i => i.siteId === filterSite);
+        }
+        return data;
+    }, [inventory, filterSite]);
 
     const kpis = useMemo(() => {
         const totalStockValue = fullInventory.reduce((acc, item) => acc + item.totalValue, 0);
@@ -54,16 +69,34 @@ export const KPIAnalytics: React.FC<KPIAnalyticsProps> = ({ inventory, transacti
         const stockoutItems = fullInventory.filter(i => i.quantity <= 5).length;
         const stockoutRate = totalItemsCount > 0 ? (stockoutItems / totalItemsCount) * 100 : 0;
 
-        const periodStart = new Date();
-        periodStart.setDate(periodStart.getDate() - 30);
-        const consumptionTxs = transactions.filter(t => t.type === 'CONSUMPTION' && new Date(t.date) >= periodStart);
+        // Dynamic Consumption Calculation based on filters
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // Include full end day
+
+        const consumptionTxs = transactions.filter(t => {
+            const tDate = new Date(t.date);
+            const isConsumption = t.type === 'CONSUMPTION';
+            const inDateRange = tDate >= start && tDate <= end;
+            const inSite = filterSite === 'ALL' || t.siteId === filterSite;
+            return isConsumption && inDateRange && inSite;
+        });
+
         const consumptionValue = consumptionTxs.reduce((acc, t) => {
             const item = ITEMS.find(i => i.id === t.itemId);
             return acc + (Math.abs(t.quantity) * (item?.cost || 0));
         }, 0);
 
         const itr = totalStockValue > 0 ? (consumptionValue / totalStockValue) : 0;
-        const dsi = itr > 0 ? (30 / itr) : 0;
+        
+        // DSI adjustment based on selected period length (if not 30 days)
+        const diffTime = Math.abs(end.getTime() - start.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1; 
+        
+        // DSI = (Avg Inventory / COGS) * PeriodDays. 
+        // Here we use Ending Inventory as proxy for Avg.
+        const dsi = consumptionValue > 0 ? (totalStockValue / consumptionValue) * diffDays : 0;
+        
         const totalAvailable = totalStockValue + consumptionValue;
         const str = totalAvailable > 0 ? (consumptionValue / totalAvailable) * 100 : 0;
 
@@ -74,8 +107,8 @@ export const KPIAnalytics: React.FC<KPIAnalyticsProps> = ({ inventory, transacti
         score += (itr > 0.5 ? 20 : itr * 40);
         const finalScore = Math.max(0, Math.min(100, score));
 
-        return { totalStockValue, deadStockValue, deadStockRate, stockoutRate, itr, dsi, str, consumptionValue, finalScore };
-    }, [fullInventory, transactions]);
+        return { totalStockValue, deadStockValue, deadStockRate, stockoutRate, itr, dsi, str, consumptionValue, finalScore, diffDays };
+    }, [fullInventory, transactions, startDate, endDate, filterSite]);
 
     const abcAnalysis = useMemo(() => {
         type GroupedItem = { id: string; name: string; sku: string; totalValue: number; qty: number; site: string; idle: number };
@@ -91,30 +124,52 @@ export const KPIAnalytics: React.FC<KPIAnalyticsProps> = ({ inventory, transacti
 
     const categoryMetrics = useMemo(() => {
         const cats: Record<string, { stockValue: number, consumption: number }> = {};
+        
+        // Init Categories from filtered inventory
         fullInventory.forEach(item => {
             if (!cats[item.category]) cats[item.category] = { stockValue: 0, consumption: 0 };
             cats[item.category].stockValue += item.totalValue;
         });
-        const periodStart = new Date();
-        periodStart.setDate(periodStart.getDate() - 30);
-        transactions.filter(t => t.type === 'CONSUMPTION' && new Date(t.date) >= periodStart).forEach(t => {
+
+        // Filter Transactions
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const filteredTx = transactions.filter(t => {
+            const tDate = new Date(t.date);
+            return t.type === 'CONSUMPTION' && 
+                   tDate >= start && tDate <= end && 
+                   (filterSite === 'ALL' || t.siteId === filterSite);
+        });
+
+        filteredTx.forEach(t => {
             const item = ITEMS.find(i => i.id === t.itemId);
-            if (item && cats[item.category]) cats[item.category].consumption += (Math.abs(t.quantity) * item.cost);
+            if (item) {
+                // Ensure category exists even if no stock currently
+                if (!cats[item.category]) cats[item.category] = { stockValue: 0, consumption: 0 };
+                cats[item.category].consumption += (Math.abs(t.quantity) * item.cost);
+            }
         });
 
         return Object.keys(cats).map(key => {
-            const weeklyConsumption = cats[key].consumption / 4;
-            const weeksSupply = weeklyConsumption > 0 ? (cats[key].stockValue / weeklyConsumption) : 99;
+            // Weeks of Supply = Stock / (Consumption / Weeks in Period)
+            const weeksInPeriod = kpis.diffDays / 7;
+            const periodConsumption = cats[key].consumption;
+            const weeklyRate = weeksInPeriod > 0 ? periodConsumption / weeksInPeriod : 0;
+            
+            const weeksSupply = weeklyRate > 0 ? (cats[key].stockValue / weeklyRate) : (cats[key].stockValue > 0 ? 99 : 0);
             return { name: key, stock: cats[key].stockValue, consumption: cats[key].consumption, weeksSupply: weeksSupply > 52 ? 52 : weeksSupply };
         }).sort((a, b) => b.stock - a.stock);
-    }, [fullInventory, transactions]);
+    }, [fullInventory, transactions, startDate, endDate, filterSite, kpis.diffDays]);
 
     useEffect(() => {
         let isMounted = true;
         const fetchAI = async () => {
             setAiLoading(true);
             const snapshot = {
-                itr: `${kpis.itr.toFixed(2)}x mensual`,
+                context: `Periodo: ${kpis.diffDays} días. Sitio: ${filterSite === 'ALL' ? 'Global' : 'Obra Específica'}`,
+                itr: `${kpis.itr.toFixed(2)}x (en periodo)`,
                 dsi: `${kpis.dsi.toFixed(0)} días`,
                 str: `${kpis.str.toFixed(1)}%`,
                 deadStock: `${kpis.deadStockRate.toFixed(1)}% del valor total`,
@@ -124,17 +179,18 @@ export const KPIAnalytics: React.FC<KPIAnalyticsProps> = ({ inventory, transacti
             const result = await getKPIBenchmarks(snapshot);
             if (isMounted) { setAiData(result); setAiLoading(false); }
         };
-        const timeout = setTimeout(fetchAI, 1000);
+        // Debounce AI call
+        const timeout = setTimeout(fetchAI, 1500);
         return () => { isMounted = false; clearTimeout(timeout); };
-    }, [kpis]);
+    }, [kpis, filterSite]);
 
     return (
         <div className="space-y-8 animate-fade-in pb-20 max-w-7xl mx-auto">
             {/* Header with Health Score */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">Estrategia Logística</h2>
-                    <p className="text-slate-500 text-sm mt-1 font-medium italic">Análisis avanzado de eficiencia y benchmarking de mercado.</p>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tight">Estrategia de Rotación</h2>
+                    <p className="text-slate-500 text-sm mt-1 font-medium italic">Análisis de eficiencia logística por periodo y obra.</p>
                 </div>
                 
                 <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xl flex items-center gap-6 group hover:border-sky-400 transition-all">
@@ -166,17 +222,63 @@ export const KPIAnalytics: React.FC<KPIAnalyticsProps> = ({ inventory, transacti
                         <div className={`text-xl font-black ${kpis.finalScore > 70 ? 'text-emerald-600' : kpis.finalScore > 40 ? 'text-orange-600' : 'text-red-600'}`}>
                             {kpis.finalScore > 70 ? 'Operación Saludable' : kpis.finalScore > 40 ? 'Riesgo Moderado' : 'Crisis de Flujo'}
                         </div>
-                        <p className="text-[9px] text-slate-400 font-bold mt-0.5">Basado en Rotación, Stock Muerto y Quiebres.</p>
+                        <p className="text-[9px] text-slate-400 font-bold mt-0.5">Basado en periodo seleccionado</p>
                     </div>
+                </div>
+            </div>
+
+            {/* FILTERS BAR */}
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 no-print">
+                <div className="flex flex-col lg:flex-row gap-4 items-end">
+                    <div className="flex-1 w-full">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Filtrar por Obra</label>
+                        <select 
+                            className="w-full border-2 border-slate-50 bg-slate-50 rounded-2xl px-4 py-2.5 text-xs font-black uppercase outline-none focus:bg-white focus:border-sky-500 transition-all"
+                            value={filterSite}
+                            onChange={(e) => setFilterSite(e.target.value)}
+                        >
+                            <option value="ALL">Todas las Obras</option>
+                            {SITES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
+                    <div className="flex-1 w-full">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Desde Fecha</label>
+                        <input 
+                            type="date" 
+                            className="w-full border-2 border-slate-50 bg-slate-50 rounded-2xl px-4 py-2 text-xs font-bold outline-none focus:bg-white focus:border-sky-500"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex-1 w-full">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase mb-1 ml-1">Hasta Fecha</label>
+                        <input 
+                            type="date" 
+                            className="w-full border-2 border-slate-50 bg-slate-50 rounded-2xl px-4 py-2 text-xs font-bold outline-none focus:bg-white focus:border-sky-500"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                        />
+                    </div>
+                    <button 
+                        onClick={() => { 
+                            setFilterSite('ALL'); 
+                            const d = new Date(); d.setDate(d.getDate() - 30); 
+                            setStartDate(d.toISOString().split('T')[0]); 
+                            setEndDate(new Date().toISOString().split('T')[0]);
+                        }}
+                        className="px-4 py-2 text-xs font-black text-slate-400 hover:text-slate-600 uppercase"
+                    >
+                        Reset
+                    </button>
                 </div>
             </div>
 
             {/* KPI Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'ITR (Rotación)', value: kpis.itr.toFixed(2), unit: 'x/mes', icon: '🔄', info: 'Vueltas del inventario. Meta industria: > 0.45x', color: 'emerald', progress: Math.min(kpis.itr * 200, 100) },
-                    { label: 'DSI (Días Stock)', value: kpis.dsi.toFixed(0), unit: 'días', icon: '📅', info: 'Tiempo en almacén. Óptimo: 30-60 días', color: 'sky', progress: Math.min((kpis.dsi / 120) * 100, 100) },
-                    { label: 'STR (Sell-Through)', value: kpis.str.toFixed(1), unit: '%', icon: '📈', info: 'Consumo vs Disponibilidad.', color: 'purple', progress: kpis.str },
+                    { label: 'ITR (Periodo)', value: kpis.itr.toFixed(2), unit: 'x', icon: '🔄', info: `Rotación en los últimos ${kpis.diffDays} días.`, color: 'emerald', progress: Math.min(kpis.itr * 150, 100) },
+                    { label: 'DSI (Días Stock)', value: kpis.dsi.toFixed(0), unit: 'días', icon: '📅', info: 'Días que dura el inventario al ritmo de consumo actual.', color: 'sky', progress: Math.min((kpis.dsi / 120) * 100, 100) },
+                    { label: 'STR (Sell-Through)', value: kpis.str.toFixed(1), unit: '%', icon: '📈', info: 'Porcentaje de inventario consumido en el periodo.', color: 'purple', progress: kpis.str },
                     { label: 'Stock Muerto', value: kpis.deadStockRate.toFixed(1), unit: '%', icon: '🧟', info: 'Valor sin mover > 90 días.', color: 'red', progress: kpis.deadStockRate }
                 ].map((kpi, i) => (
                     <div key={i} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between hover:scale-[1.02] transition-transform group relative overflow-hidden">
@@ -222,27 +324,31 @@ export const KPIAnalytics: React.FC<KPIAnalyticsProps> = ({ inventory, transacti
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                {abcAnalysis.topValueItems.map((item, idx) => {
-                                    const share = (item.totalValue / abcAnalysis.totalValue) * 100;
-                                    return (
-                                        <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                                            <td className="px-8 py-5">
-                                                <div className="font-bold text-slate-800 group-hover:text-sky-600 transition-colors">{item.name}</div>
-                                                <div className="text-[9px] text-slate-400 font-mono">{item.sku} • {item.site}</div>
-                                            </td>
-                                            <td className="px-8 py-5 text-right">
-                                                <div className={`font-black ${item.idle > 60 ? 'text-orange-500' : 'text-slate-500'}`}>{item.idle} d</div>
-                                                <div className="w-16 bg-slate-100 h-1 rounded-full mt-1 ml-auto">
-                                                    <div className={`h-full rounded-full ${item.idle > 60 ? 'bg-orange-500' : 'bg-slate-300'}`} style={{ width: `${Math.min(item.idle, 100)}%` }}></div>
-                                                </div>
-                                            </td>
-                                            <td className="px-8 py-5 text-right">
-                                                <div className="font-black text-slate-800">{formatCurrency(item.totalValue)}</div>
-                                                <div className="text-[9px] font-black text-sky-500 uppercase">{share.toFixed(1)}% del Stock</div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                {abcAnalysis.topValueItems.length === 0 ? (
+                                    <tr><td colSpan={3} className="p-8 text-center text-slate-400">Sin datos para la selección actual</td></tr>
+                                ) : (
+                                    abcAnalysis.topValueItems.map((item, idx) => {
+                                        const share = abcAnalysis.totalValue > 0 ? (item.totalValue / abcAnalysis.totalValue) * 100 : 0;
+                                        return (
+                                            <tr key={idx} className="hover:bg-slate-50 transition-colors group">
+                                                <td className="px-8 py-5">
+                                                    <div className="font-bold text-slate-800 group-hover:text-sky-600 transition-colors">{item.name}</div>
+                                                    <div className="text-[9px] text-slate-400 font-mono">{item.sku} • {item.site}</div>
+                                                </td>
+                                                <td className="px-8 py-5 text-right">
+                                                    <div className={`font-black ${item.idle > 60 ? 'text-orange-500' : 'text-slate-500'}`}>{item.idle} d</div>
+                                                    <div className="w-16 bg-slate-100 h-1 rounded-full mt-1 ml-auto">
+                                                        <div className={`h-full rounded-full ${item.idle > 60 ? 'bg-orange-500' : 'bg-slate-300'}`} style={{ width: `${Math.min(item.idle, 100)}%` }}></div>
+                                                    </div>
+                                                </td>
+                                                <td className="px-8 py-5 text-right">
+                                                    <div className="font-black text-slate-800">{formatCurrency(item.totalValue)}</div>
+                                                    <div className="text-[9px] font-black text-sky-500 uppercase">{share.toFixed(1)}% del Stock</div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -252,7 +358,7 @@ export const KPIAnalytics: React.FC<KPIAnalyticsProps> = ({ inventory, transacti
                 <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-200 flex flex-col">
                     <div className="mb-8">
                         <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest">Salud por Categoría (WoS)</h3>
-                        <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold">Semanas de inventario disponible según consumo actual.</p>
+                        <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold">Semanas de inventario basado en consumo del periodo seleccionado.</p>
                     </div>
                     <div className="flex-1 min-h-[400px]">
                         <ResponsiveContainer width="100%" height="100%">
