@@ -9,6 +9,8 @@ interface SidebarProps {
   onLogout: () => void;
   isOpen: boolean;
   setIsOpen: (open: boolean) => void;
+  installPrompt?: any;
+  onInstallClick?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -17,7 +19,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentView, 
   onLogout,
   isOpen,
-  setIsOpen
+  setIsOpen,
+  installPrompt,
+  onInstallClick
 }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard & KPIs', icon: '📊', roles: [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.SITE_MANAGER, UserRole.PURCHASING] },
@@ -82,8 +86,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </div>
 
-        <div className="p-4 border-t border-slate-700 bg-slate-800">
-          <div className="flex items-center space-x-3 mb-3">
+        <div className="p-4 border-t border-slate-700 bg-slate-800 space-y-3">
+          {installPrompt && (
+            <button
+              onClick={onInstallClick}
+              className="w-full text-sm font-black bg-emerald-600 hover:bg-emerald-700 py-3 px-2 rounded-xl text-white transition-colors shadow-lg active:scale-95 flex items-center justify-center gap-2"
+            >
+              <span>📲</span> Instalar App
+            </button>
+          )}
+
+          <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-full bg-sky-500 flex items-center justify-center font-bold text-lg shadow-inner">
               {currentUser.name.charAt(0)}
             </div>

@@ -24,6 +24,9 @@ function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   
+  // PWA Install State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
   // State to track how many notifications the user has already seen
   const [viewedNotificationCount, setViewedNotificationCount] = useState(0);
   
@@ -52,6 +55,29 @@ function App() {
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   const activeService = isDemoMode ? mockApiService : apiService;
+
+  // Handle PWA Install Prompt
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult: any) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+      } else {
+        console.log('User dismissed the install prompt');
+      }
+      setDeferredPrompt(null);
+    });
+  };
 
   // Apply Font Size to Root
   useEffect(() => {
@@ -265,6 +291,15 @@ function App() {
                 >
                     {isLoggingIn ? 'Iniciando...' : 'Iniciar Sesión'}
                 </button>
+                {deferredPrompt && (
+                    <button 
+                        type="button"
+                        onClick={handleInstallClick}
+                        className="w-full mt-4 bg-slate-800 text-white py-3 rounded-xl font-bold text-xs uppercase"
+                    >
+                        📲 Instalar App en PC/Móvil
+                    </button>
+                )}
             </form>
         </div>
       </div>
@@ -282,6 +317,8 @@ function App() {
           onLogout={() => setCurrentUser(null)}
           isOpen={isSidebarOpen}
           setIsOpen={setIsSidebarOpen}
+          installPrompt={deferredPrompt}
+          onInstallClick={handleInstallClick}
         />
         
         <main className="flex-1 lg:ml-64 w-full relative flex flex-col min-h-screen">
