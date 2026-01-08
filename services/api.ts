@@ -1,8 +1,8 @@
 
 import { InventoryRecord, MovementRequest, ProjectProgress, Site, Tool, Transaction, User } from "../types";
 
-// URL de producción basada en la documentación proporcionada
-const API_URL = "http://inventario.pcmejia.com/api"; 
+// Usamos HTTPS para asegurar la conexión y evitar bloqueos de contenido mixto (Mixed Content).
+const API_URL = "https://inventario.pcmejia.com/api"; 
 
 // Headers estándar para comunicar con FastAPI
 const HEADERS = {
@@ -25,11 +25,10 @@ async function safeFetch<T>(url: string, options?: RequestInit): Promise<T> {
         const response = await fetch(url, options);
         return await handleResponse<T>(response);
     } catch (error: any) {
-        // TypeError: Failed to fetch usually happens on network failure (DNS, connection refused, CORS)
+        // TypeError: Failed to fetch usually happens on network failure (DNS, connection refused, CORS, Mixed Content)
         if (error instanceof TypeError && error.message === 'Failed to fetch') {
              console.error(`Network Error: Could not connect to ${url}`);
-             // We include 'Failed to fetch' in the message so App.tsx can still detect it if needed
-             throw new Error(`No se pudo conectar con el servidor (Failed to fetch). Verifique la conexión con ${API_URL}`);
+             throw new Error(`No se pudo conectar con el servidor. Verifique CORS, HTTPS o el estado del servicio.`);
         }
         throw error;
     }
